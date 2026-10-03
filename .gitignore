@@ -3,3 +3,5 @@ dist
 .next
 .env
 backend/src/generated
+*.tsbuildinfo
+coverage
