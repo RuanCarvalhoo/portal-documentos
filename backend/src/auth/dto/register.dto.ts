@@ -1,6 +1,6 @@
 import { Transform } from 'class-transformer';
 import { IsByteLength, IsEmail, IsString, Length, MaxLength, MinLength } from 'class-validator';
-import { normalizeEmail, trim } from './transforms';
+import { normalizeEmail, trim } from '../../common/transforms';
 
 export class RegisterDto {
   /**
