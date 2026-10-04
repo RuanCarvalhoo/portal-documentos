@@ -17,18 +17,19 @@ Qualquer usuário logado pode editar qualquer página. Duas pessoas podem abrir 
 Concorrência otimista. `PATCH /pages/:id` exige `version`; a gravação é um único comando atômico:
 
 ```sql
-UPDATE pages SET ..., version = version + 1, updated_at = now()
+UPDATE pages SET ..., version = version + 1, updated_at = ...
 WHERE id = $1 AND version = $2
+RETURNING ...
 ```
 
-(no Prisma, `updateMany({ where: { id, version } })`). Se nenhuma linha for afetada, outra pessoa salvou antes → **409 Conflict** com a mensagem "Esta página foi alterada por outra pessoa". O frontend mantém o texto digitado e orienta a recarregar.
+(no Prisma, `update({ where: { id, version } })`). Se nenhuma linha casar, a API distingue: a página ainda existe → outra pessoa salvou antes → **409 Conflict** ("Esta página foi alterada por outra pessoa"); a página sumiu → **404**. O frontend mantém o texto digitado e orienta a recarregar.
 
 ## Consequências
 
-- Nenhum lock é mantido: leituras e edições não se bloqueiam.
-- A checagem e a gravação acontecem no mesmo `UPDATE`, então não há janela de corrida entre "ler a versão" e "gravar".
+- Edições de conteúdo não mantêm lock: leituras e edições não se bloqueiam.
+- A checagem da versão e a gravação acontecem no mesmo `UPDATE`, então não há janela de corrida para a **mesma página** (testado: dois saves simultâneos da mesma versão → um 200, um 409).
+- A versão protege uma linha, não a **estrutura**: duas movimentações opostas simultâneas (A para dentro de B e B para dentro de A) passariam na checagem de ciclo e formariam um laço. Por isso criar e mover páginas rodam numa transação que trava a linha do espaço (`SELECT ... FOR UPDATE`): mudanças de estrutura no mesmo espaço entram em fila, o que também evita posições duplicadas entre irmãos.
 - O cliente precisa reenviar a versão (vem em toda leitura de página).
-- `updateMany` não aciona o `@updatedAt` do Prisma, por isso `updated_at` é definido explicitamente.
 - Não há merge automático: em conflito, a pessoa recarrega e reaplica a mudança.
 
 ## Quando eu mudaria de ideia
