@@ -1,8 +1,10 @@
 import { validateEnv } from './env.validation';
 
+const SECRET = 'x'.repeat(32);
+
 describe('validateEnv', () => {
   it('applies defaults for optional variables', () => {
-    expect(validateEnv({ DATABASE_URL: 'postgresql://localhost/db' })).toMatchObject({
+    expect(validateEnv({ DATABASE_URL: 'postgresql://localhost/db', JWT_SECRET: SECRET })).toMatchObject({
       DATABASE_URL: 'postgresql://localhost/db',
       PORT: 3001,
       CORS_ORIGIN: 'http://localhost:3000',
@@ -10,7 +12,7 @@ describe('validateEnv', () => {
   });
 
   it('converts PORT to a number', () => {
-    expect(validateEnv({ DATABASE_URL: 'postgresql://x', PORT: '4000' }).PORT).toBe(4000);
+    expect(validateEnv({ DATABASE_URL: 'postgresql://x', JWT_SECRET: SECRET, PORT: '4000' }).PORT).toBe(4000);
   });
 
   it('fails fast when DATABASE_URL is missing', () => {
@@ -23,7 +25,7 @@ describe('validateEnv', () => {
 });
 
 describe('validateEnv edge cases', () => {
-  const base = { DATABASE_URL: 'postgresql://x' };
+  const base = { DATABASE_URL: 'postgresql://x', JWT_SECRET: SECRET };
 
   it('rejects an empty DATABASE_URL', () => {
     expect(() => validateEnv({ DATABASE_URL: '' })).toThrow('DATABASE_URL');
@@ -44,5 +46,17 @@ describe('validateEnv edge cases', () => {
     expect(validateEnv({ ...base, CORS_ORIGIN: 'https://docs.example.com' }).CORS_ORIGIN).toBe(
       'https://docs.example.com',
     );
+  });
+});
+
+describe('validateEnv JWT_SECRET', () => {
+  const base = { DATABASE_URL: 'postgresql://x' };
+
+  it('requires JWT_SECRET', () => {
+    expect(() => validateEnv(base)).toThrow('JWT_SECRET');
+  });
+
+  it('rejects a JWT_SECRET shorter than 32 characters', () => {
+    expect(() => validateEnv({ ...base, JWT_SECRET: 'short' })).toThrow('JWT_SECRET');
   });
 });

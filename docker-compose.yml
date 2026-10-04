@@ -29,6 +29,8 @@ services:
       PORT: 3001
       # Única origem liberada no CORS: o frontend acessado pelo navegador
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      # Valor padrão só para avaliação local; em qualquer outro ambiente, defina JWT_SECRET
+      JWT_SECRET: ${JWT_SECRET:-dev-only-jwt-secret-change-me-0123456789}
     ports:
       - "3001:3001"
     depends_on:
