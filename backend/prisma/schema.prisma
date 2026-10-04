@@ -72,11 +72,10 @@ model Page {
   // Árvore: filtra por espaço, agrupa por pai, ordena por posição. Pelo prefixo à esquerda
   // também serve buscas só por space_id → sem índice separado em space_id.
   @@index([spaceId, parentId, position])
-  // O Postgres não indexa FKs sozinho: sem estes, cada ON DELETE CASCADE / checagem de FK
-  // faria seq scan em pages.
+  // O Postgres não indexa FKs sozinho: sem este, cada ON DELETE CASCADE da hierarquia faria
+  // seq scan em pages para achar as filhas. (created_by_id/updated_by_id ficam sem índice de
+  // propósito: só ajudariam ao excluir usuários, o que não existe — seriam custo em toda escrita.)
   @@index([parentId])
-  @@index([createdById])
-  @@index([updatedById])
   // Busca por substring (ILIKE '%termo%' / contains insensitive): B-tree não ajuda com curinga
   // à esquerda; trigramas + GIN sim. A extensão pg_trgm é criada na migration (SQL manual).
   @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "pages_title_trgm_idx")
