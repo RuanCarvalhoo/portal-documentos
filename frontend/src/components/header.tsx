@@ -42,7 +42,7 @@ export function Header({ menuOpen, onToggleMenu }: HeaderProps) {
         </Link>
 
         {/* action="/search": a busca funciona até sem JavaScript */}
-        <form action="/search" role="search" onSubmit={search} className="ml-auto w-full max-w-xs">
+        <form action="/search" role="search" aria-label="Buscar na documentação" onSubmit={search} className="ml-auto w-full max-w-xs">
           <label htmlFor="busca" className="sr-only">
             Buscar na documentação
           </label>

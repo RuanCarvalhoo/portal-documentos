@@ -1,11 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { ApiError, apiFetch } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
 import { highlightParts } from '@/lib/highlight';
 import type { Paginated, SearchResult } from '@/lib/types';
 
 const PAGE_SIZE = 10;
+// Mesmo teto de página da API (acima disso ela responde 400)
+const MAX_PAGE = 100_000;
 
 export async function generateMetadata({ searchParams }: PageProps<'/search'>): Promise<Metadata> {
   const { q } = await searchParams;
@@ -15,7 +18,8 @@ export async function generateMetadata({ searchParams }: PageProps<'/search'>): 
 export default async function SearchPage({ searchParams }: PageProps<'/search'>) {
   const params = await searchParams;
   const q = typeof params.q === 'string' ? params.q.trim() : '';
-  const page = Math.max(1, Number.parseInt(typeof params.page === 'string' ? params.page : '1', 10) || 1);
+  const requested = Number.parseInt(typeof params.page === 'string' ? params.page : '1', 10) || 1;
+  const page = Math.min(MAX_PAGE, Math.max(1, requested));
 
   let results: Paginated<SearchResult> | null = null;
   let errors: string[] = [];
@@ -30,11 +34,15 @@ export default async function SearchPage({ searchParams }: PageProps<'/search'>)
   }
   const totalPages = results ? Math.max(1, Math.ceil(results.meta.total / PAGE_SIZE)) : 1;
   const pageHref = (target: number) => `/search?${new URLSearchParams({ q, page: String(target) })}`;
+  // Página além do fim (link antigo, URL editada): leva para a última página com resultados
+  if (results && results.data.length === 0 && results.meta.total > 0) {
+    redirect(pageHref(totalPages));
+  }
 
   return (
     <div>
       <h1 className="font-serif text-4xl tracking-tight">Busca</h1>
-      <form action="/search" role="search" className="mt-6 flex max-w-xl gap-2">
+      <form action="/search" role="search" aria-label="Refinar a busca" className="mt-6 flex max-w-xl gap-2">
         <label htmlFor="busca-pagina" className="sr-only">
           Termo da busca
         </label>
@@ -42,6 +50,8 @@ export default async function SearchPage({ searchParams }: PageProps<'/search'>)
           id="busca-pagina"
           name="q"
           type="search"
+          // key: uma nova busca pelo header recria o campo com o termo atual
+          key={q}
           defaultValue={q}
           placeholder="Título ou conteúdo (mínimo 3 letras)"
           className="h-10 min-w-0 flex-1 rounded-md border border-border bg-surface px-3 text-sm outline-none focus:border-foreground/40 focus:ring-2 focus:ring-accent-fg/25"
