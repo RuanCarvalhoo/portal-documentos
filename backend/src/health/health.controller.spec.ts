@@ -31,8 +31,9 @@ describe('HealthController', () => {
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     prismaMock.$queryRaw.mockRejectedValue(new Error('connection refused'));
 
-    await expect(controller.check()).rejects.toBeInstanceOf(
-      ServiceUnavailableException,
-    );
+    const result = controller.check();
+
+    await expect(result).rejects.toBeInstanceOf(ServiceUnavailableException);
+    await expect(result).rejects.toThrow('Banco de dados indisponível');
   });
 });
