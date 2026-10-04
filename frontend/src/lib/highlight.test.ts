@@ -23,3 +23,10 @@ test('returns the whole text unmarked for an empty term or no match', () => {
   assert.deepEqual(highlightParts('texto', ' '), [{ text: 'texto', match: false }]);
   assert.deepEqual(highlightParts('texto', 'zzz'), [{ text: 'texto', match: false }]);
 });
+
+test('keeps indexes aligned when lowercasing changes a character length', () => {
+  assert.deepEqual(highlightParts('İstanbul', 'stanbul'), [
+    { text: 'İ', match: false },
+    { text: 'stanbul', match: true },
+  ]);
+});
