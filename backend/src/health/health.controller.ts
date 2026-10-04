@@ -30,10 +30,7 @@ export class HealthController {
         'Database health check failed',
         error instanceof Error ? error.stack : String(error),
       );
-      throw new ServiceUnavailableException({
-        status: 'error',
-        database: 'down',
-      });
+      throw new ServiceUnavailableException('Banco de dados indisponível');
     }
     return { status: 'ok', database: 'up' };
   }
