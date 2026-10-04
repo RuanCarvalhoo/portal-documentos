@@ -15,7 +15,8 @@ export function LoginForm({ next }: { next: string }) {
   const [apiErrors, setApiErrors] = useState<string[]>([]);
   const [pending, setPending] = useState(false);
 
-  if (ready && user) {
+  // !pending: logo após entrar, o usuário já existe mas a navegação ainda não terminou
+  if (ready && user && !pending) {
     return (
       <p className="text-sm">
         Você já entrou como <strong>{user.name}</strong>.{' '}
@@ -28,7 +29,11 @@ export function LoginForm({ next }: { next: string }) {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    if (pending) {
+      return;
+    }
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const email = String(form.get('email') ?? '').trim();
     const password = String(form.get('password') ?? '');
 
@@ -38,14 +43,18 @@ export function LoginForm({ next }: { next: string }) {
     };
     setErrors(found);
     setApiErrors([]);
-    if (Object.keys(found).length > 0) {
+    const firstInvalid = Object.keys(found)[0];
+    if (firstInvalid) {
+      // Leva o foco ao campo com problema: o erro dele é lido pelo aria-describedby
+      (formElement.elements.namedItem(firstInvalid) as HTMLElement | null)?.focus();
       return;
     }
 
     setPending(true);
     try {
       await login(email, password);
-      router.push(next);
+      // replace: o Voltar não retorna para a tela de login
+      router.replace(next);
     } catch (error) {
       setApiErrors(errorMessages(error));
       setPending(false);
@@ -55,7 +64,15 @@ export function LoginForm({ next }: { next: string }) {
   return (
     <form noValidate onSubmit={submit} className="space-y-5">
       <ErrorAlert messages={apiErrors} />
-      <Field label="E-mail" name="email" type="email" autoComplete="email" error={errors.email} />
+      <Field
+        label="E-mail"
+        name="email"
+        type="email"
+        autoComplete="username"
+        autoCapitalize="none"
+        spellCheck={false}
+        error={errors.email}
+      />
       <Field label="Senha" name="password" type="password" autoComplete="current-password" error={errors.password} />
       <SubmitButton pending={pending}>Entrar</SubmitButton>
       <p className="text-xs text-muted">

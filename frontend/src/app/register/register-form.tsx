@@ -21,7 +21,11 @@ export function RegisterForm({ next }: { next: string }) {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    if (pending) {
+      return;
+    }
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const name = String(form.get('name') ?? '').trim();
     const email = String(form.get('email') ?? '').trim();
     const password = String(form.get('password') ?? '');
@@ -35,14 +39,16 @@ export function RegisterForm({ next }: { next: string }) {
     };
     setErrors(found);
     setApiErrors([]);
-    if (Object.keys(found).length > 0) {
+    const firstInvalid = Object.keys(found)[0];
+    if (firstInvalid) {
+      (formElement.elements.namedItem(firstInvalid) as HTMLElement | null)?.focus();
       return;
     }
 
     setPending(true);
     try {
       await register(name, email, password);
-      router.push(next);
+      router.replace(next);
     } catch (error) {
       setApiErrors(errorMessages(error));
       setPending(false);
@@ -53,7 +59,15 @@ export function RegisterForm({ next }: { next: string }) {
     <form noValidate onSubmit={submit} className="space-y-5">
       <ErrorAlert messages={apiErrors} />
       <Field label="Nome" name="name" autoComplete="name" error={errors.name} />
-      <Field label="E-mail" name="email" type="email" autoComplete="email" error={errors.email} />
+      <Field
+        label="E-mail"
+        name="email"
+        type="email"
+        autoComplete="email"
+        autoCapitalize="none"
+        spellCheck={false}
+        error={errors.email}
+      />
       <Field
         label="Senha"
         name="password"

@@ -34,31 +34,38 @@ export function Field({ label, name, error, hint, id = name, ...input }: FieldPr
 
 export function SubmitButton({ pending, children }: { pending: boolean; children: ReactNode }) {
   return (
+    // aria-disabled (e não disabled): o botão não perde o foco do teclado enquanto envia;
+    // quem usa o botão ignora envios repetidos com pending
     <button
       type="submit"
-      disabled={pending}
-      className="inline-flex h-10 items-center justify-center rounded-md bg-foreground px-4 text-sm font-medium text-background transition hover:opacity-90 active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
+      aria-disabled={pending}
+      className="inline-flex h-10 items-center justify-center rounded-md bg-foreground px-4 text-sm font-medium text-background transition hover:opacity-90 active:scale-[0.98] aria-disabled:cursor-wait aria-disabled:opacity-60"
     >
       {pending ? 'Aguarde...' : children}
     </button>
   );
 }
 
-/** Erros vindos da API (400 com lista, 401, 409, 429...). */
+/**
+ * Erros vindos da API (400 com lista, 401, 409, 429...). A região role=alert fica sempre
+ * montada: leitores de tela anunciam o conteúdo que entra nela, o que não acontece de forma
+ * confiável quando o elemento já nasce com o texto.
+ */
 export function ErrorAlert({ messages }: { messages: string[] }) {
-  if (messages.length === 0) {
-    return null;
-  }
   return (
-    <div role="alert" className="rounded-md bg-danger-bg px-4 py-3 text-sm text-danger-fg">
-      {messages.length === 1 ? (
-        <p>{messages[0]}</p>
-      ) : (
-        <ul className="list-disc space-y-1 pl-4">
-          {messages.map((message) => (
-            <li key={message}>{message}</li>
-          ))}
-        </ul>
+    <div role="alert">
+      {messages.length > 0 && (
+        <div className="rounded-md bg-danger-bg px-4 py-3 text-sm text-danger-fg">
+          {messages.length === 1 ? (
+            <p>{messages[0]}</p>
+          ) : (
+            <ul className="list-disc space-y-1 pl-4">
+              {messages.map((message, index) => (
+                <li key={`${index}-${message}`}>{message}</li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   );
