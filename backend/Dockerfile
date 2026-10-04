@@ -22,7 +22,10 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/package.json /app/prisma7.config.ts ./
 COPY --from=build /app/prisma ./prisma
+# O seed (tsx) importa o client gerado em TypeScript a partir de src/generated
+COPY --from=build /app/src/generated ./src/generated
 USER node
 EXPOSE 3001
-# exec: o node substitui o sh como PID 1 e recebe o SIGTERM do `docker stop` (fecha o pool)
-CMD ["sh", "-c", "npm run db:deploy && exec node dist/main"]
+# migrations → seed idempotente → API. exec: o node substitui o sh como PID 1 e recebe o
+# SIGTERM do `docker stop` (fecha o pool)
+CMD ["sh", "-c", "npm run db:deploy && npm run db:seed && exec node dist/main"]
