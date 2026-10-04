@@ -80,3 +80,40 @@ export function AuthCard({ title, subtitle, children }: { title: string; subtitl
     </div>
   );
 }
+
+interface TextAreaFieldProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label: string;
+  name: string;
+  error?: string;
+  hint?: ReactNode;
+}
+
+export function TextAreaField({ label, name, error, hint, id = name, ...textarea }: TextAreaFieldProps) {
+  const messageId = `${id}-mensagem`;
+  return (
+    <div>
+      <label htmlFor={id} className="block text-sm font-medium">
+        {label}
+      </label>
+      <textarea
+        id={id}
+        name={name}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error || hint ? messageId : undefined}
+        className="mt-1.5 block w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-foreground/40 focus:ring-2 focus:ring-accent-fg/25 aria-[invalid=true]:border-danger-fg/60"
+        {...textarea}
+      />
+      {(error || hint) && (
+        <p id={messageId} className={`mt-1.5 text-sm ${error ? 'text-danger-fg' : 'text-muted'}`}>
+          {error ?? hint}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Estilos de link/botão reaproveitados em Server e Client Components
+export const primaryButton =
+  'inline-flex h-9 items-center gap-1.5 rounded-md bg-foreground px-3.5 text-sm font-medium text-background transition hover:opacity-90 active:scale-[0.98]';
+export const secondaryButton =
+  'inline-flex h-9 items-center gap-1.5 rounded-md border border-border px-3.5 text-sm text-foreground transition-colors hover:bg-hover';

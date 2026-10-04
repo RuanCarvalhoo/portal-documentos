@@ -1,4 +1,7 @@
 import Link from 'next/link';
+import { PlusIcon } from '@/components/icons';
+import { AuthOnly } from '@/components/require-auth';
+import { secondaryButton } from '@/components/ui';
 import { getNavigation } from '@/lib/api';
 import { countPages } from '@/lib/tree';
 
@@ -13,7 +16,14 @@ export default async function HomePage() {
         busca para encontrar uma página pelo título ou pelo conteúdo.
       </p>
 
-      <h2 className="mt-12 text-xs font-semibold tracking-[0.08em] text-muted uppercase">Espaços</h2>
+      <div className="mt-12 flex items-center justify-between gap-4">
+        <h2 className="text-xs font-semibold tracking-[0.08em] text-muted uppercase">Espaços</h2>
+        <AuthOnly>
+          <Link href="/spaces/new" className={secondaryButton}>
+            <PlusIcon /> Novo espaço
+          </Link>
+        </AuthOnly>
+      </div>
       {navigation === null ? (
         <p className="mt-4 text-muted">Não foi possível carregar os espaços agora. Tente recarregar a página.</p>
       ) : navigation.length === 0 ? (
