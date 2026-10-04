@@ -32,17 +32,31 @@ export function Header({ menuOpen, onToggleMenu }: HeaderProps) {
           aria-controls="sidebar"
           aria-expanded={menuOpen}
           aria-label={menuOpen ? 'Fechar navegação' : 'Abrir navegação'}
-          className="grid size-8 place-items-center rounded-md text-muted hover:bg-hover hover:text-foreground md:hidden"
+          className="grid size-9 shrink-0 place-items-center rounded-md text-muted hover:bg-hover hover:text-foreground pointer-coarse:size-11 md:hidden"
         >
           {menuOpen ? <CloseIcon /> : <MenuIcon />}
         </button>
-        <Link href="/" className="flex shrink-0 items-center gap-2 text-foreground">
+        <Link href="/" className="flex h-9 min-w-9 shrink-0 items-center justify-center gap-2 text-foreground">
           <LogoIcon />
-          <span className="font-serif text-lg tracking-tight">Documentação</span>
+          <span className="font-serif text-lg tracking-tight max-[400px]:sr-only">Documentação</span>
         </Link>
 
         {/* action="/search": a busca funciona até sem JavaScript */}
-        <form action="/search" role="search" aria-label="Buscar na documentação" onSubmit={search} className="ml-auto w-full max-w-xs">
+        {/* Telas estreitas: o campo não cabe com folga no header; a busca abre a página dela */}
+        <Link
+          href="/search"
+          aria-label="Buscar"
+          className="ml-auto grid size-9 shrink-0 place-items-center rounded-md text-muted hover:bg-hover hover:text-foreground pointer-coarse:size-11 sm:hidden"
+        >
+          <SearchIcon />
+        </Link>
+        <form
+          action="/search"
+          role="search"
+          aria-label="Buscar na documentação"
+          onSubmit={search}
+          className="ml-auto hidden w-full max-w-xs sm:block"
+        >
           <label htmlFor="busca" className="sr-only">
             Buscar na documentação
           </label>
@@ -83,7 +97,7 @@ function UserArea() {
     return (
       <Link
         href={loginHref}
-        className="shrink-0 rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background transition-colors hover:opacity-90"
+        className="inline-flex h-9 shrink-0 items-center rounded-md bg-foreground px-3 text-sm font-medium text-background transition-colors hover:opacity-90"
       >
         Entrar
       </Link>
@@ -97,7 +111,7 @@ function UserArea() {
       <button
         type="button"
         onClick={logout}
-        className="rounded-md border border-border px-2.5 py-1 text-muted transition-colors hover:bg-hover hover:text-foreground"
+        className="h-9 rounded-md border border-border px-3 text-muted transition-colors hover:bg-hover hover:text-foreground"
       >
         Sair
       </button>
