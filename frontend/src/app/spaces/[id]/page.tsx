@@ -22,8 +22,7 @@ export default async function SpacePage({ params }: PageProps<'/spaces/[id]'>) {
 
   return (
     <article>
-      <p className="text-xs font-semibold tracking-[0.08em] text-muted uppercase">Espaço</p>
-      <div className="mt-1 flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <h1 className="font-serif text-4xl tracking-tight sm:text-5xl">{space.name}</h1>
         {/* Altura reservada: as ações só aparecem depois de confirmar a sessão (sem "pulo") */}
         <div className="min-h-9">
