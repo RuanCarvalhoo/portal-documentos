@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 /* Tema escuro pela classe .dark no <html> (aplicada antes da pintura pelo THEME_SCRIPT) */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -18,6 +19,11 @@
   --danger-fg: #9f2f2d;
   --success-bg: #edf3ec;
   --success-fg: #346538;
+  --hl-keyword: #1f6c9f;
+  --hl-string: #346538;
+  --hl-number: #956400;
+  --hl-title: #9f2f2d;
+  --hl-attr: #6b4fa0;
   color-scheme: light;
 }
 
@@ -34,6 +40,11 @@
   --danger-fg: #f2a19c;
   --success-bg: #22331f;
   --success-fg: #9bd08f;
+  --hl-keyword: #8ccbf5;
+  --hl-string: #9bd08f;
+  --hl-number: #e5c07b;
+  --hl-title: #f2a19c;
+  --hl-attr: #c4a7e7;
   color-scheme: dark;
 }
 
@@ -69,4 +80,83 @@ body {
 ::selection {
   background: var(--accent-bg);
   color: var(--accent-fg);
+}
+
+/* Markdown das páginas: cores do plugin de tipografia ligadas aos tokens do tema
+   (o modo escuro funciona sem prose-invert) */
+.prose-portal {
+  --tw-prose-body: var(--foreground);
+  --tw-prose-headings: var(--foreground);
+  --tw-prose-lead: var(--muted);
+  --tw-prose-links: var(--accent-fg);
+  --tw-prose-bold: var(--foreground);
+  --tw-prose-counters: var(--muted);
+  --tw-prose-bullets: var(--muted);
+  --tw-prose-hr: var(--border);
+  --tw-prose-quotes: var(--foreground);
+  --tw-prose-quote-borders: var(--border);
+  --tw-prose-captions: var(--muted);
+  --tw-prose-kbd: var(--foreground);
+  --tw-prose-code: var(--foreground);
+  --tw-prose-pre-code: var(--foreground);
+  --tw-prose-pre-bg: var(--hover);
+  --tw-prose-th-borders: var(--border);
+  --tw-prose-td-borders: var(--border);
+}
+
+.prose-portal :where(h1, h2, h3) {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+/* Código inline: fundo suave em vez das crases que o plugin desenha */
+.prose-portal :where(code):not(:where(pre *)) {
+  background: var(--hover);
+  border-radius: 4px;
+  padding: 0.15em 0.35em;
+  font-weight: 400;
+}
+.prose-portal :where(code):not(:where(pre *))::before,
+.prose-portal :where(code):not(:where(pre *))::after {
+  content: none;
+}
+
+.prose-portal :where(pre) {
+  border: 1px solid var(--border);
+}
+
+/* Syntax highlight (classes do highlight.js) com a paleta do tema */
+.hljs-comment,
+.hljs-quote {
+  color: var(--muted);
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-built_in {
+  color: var(--hl-keyword);
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-addition {
+  color: var(--hl-string);
+}
+.hljs-number,
+.hljs-symbol {
+  color: var(--hl-number);
+}
+.hljs-title,
+.hljs-section,
+.hljs-deletion {
+  color: var(--hl-title);
+}
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-property,
+.hljs-type,
+.hljs-meta {
+  color: var(--hl-attr);
 }
