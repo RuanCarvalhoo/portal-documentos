@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SpacesService } from './spaces.service';
@@ -57,6 +57,13 @@ describe('SpacesService', () => {
     await expect(service.update('s1', { name: 'Novo' })).rejects.toThrow(
       new NotFoundException('Espaço não encontrado'),
     );
+  });
+
+  it('rejects an update without any field', async () => {
+    await expect(service.update('s1', { name: undefined })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(prisma.space.update).not.toHaveBeenCalled();
   });
 
   it('answers 404 when deleting a space that does not exist', async () => {

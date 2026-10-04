@@ -40,6 +40,7 @@ export class SpacesController {
 
   /** Detalha um espaço (público) */
   @Get(':id')
+  @ApiBadRequestResponse({ description: 'Identificador inválido' })
   @ApiNotFoundResponse({ description: 'Espaço não encontrado' })
   findOne(@Param('id', ParseIdPipe) id: string): Promise<SpaceDto> {
     return this.spaces.findOne(id);
@@ -49,6 +50,7 @@ export class SpacesController {
   @Post()
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
+  @ApiBadRequestResponse({ description: 'Corpo inválido' })
   @ApiUnauthorizedResponse({ description: 'Token ausente, inválido ou expirado' })
   create(@Body() dto: CreateSpaceDto): Promise<SpaceDto> {
     return this.spaces.create(dto);
@@ -58,6 +60,7 @@ export class SpacesController {
   @Patch(':id')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
+  @ApiBadRequestResponse({ description: 'Identificador ou corpo inválido' })
   @ApiNotFoundResponse({ description: 'Espaço não encontrado' })
   @ApiUnauthorizedResponse({ description: 'Token ausente, inválido ou expirado' })
   update(@Param('id', ParseIdPipe) id: string, @Body() dto: UpdateSpaceDto): Promise<SpaceDto> {
@@ -69,6 +72,7 @@ export class SpacesController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
+  @ApiBadRequestResponse({ description: 'Identificador inválido' })
   @ApiNotFoundResponse({ description: 'Espaço não encontrado' })
   @ApiUnauthorizedResponse({ description: 'Token ausente, inválido ou expirado' })
   remove(@Param('id', ParseIdPipe) id: string): Promise<void> {
