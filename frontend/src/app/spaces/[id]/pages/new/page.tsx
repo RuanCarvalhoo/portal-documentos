@@ -13,7 +13,7 @@ export default async function NewPagePage({ params, searchParams }: PageProps<'/
   const [space, navigation] = await Promise.all([getSpace(id), getNavigation()]);
   const parentOptions = flattenTree(navigation?.find((item) => item.id === space.id)?.pages ?? []);
   // Só pré-seleciona um pai que realmente pertence a este espaço
-  const defaultParentId = parentOptions.some((option) => option.id === parentId) ? (parentId as string) : null;
+  const defaultParentId = parentOptions.find((option) => option.id === parentId)?.id ?? null;
 
   return (
     <div>
