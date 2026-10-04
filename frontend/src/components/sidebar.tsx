@@ -146,17 +146,17 @@ function PageTree({ id, nodes, level, isOpen, activeId, onToggle }: PageTreeProp
                   aria-expanded={open}
                   aria-controls={`subpaginas-${node.id}`}
                   aria-label={`Subpáginas de ${node.title}`}
-                  className="grid size-5 shrink-0 place-items-center rounded text-muted hover:text-foreground"
+                  className="grid size-6 shrink-0 place-items-center rounded text-muted hover:text-foreground pointer-coarse:size-9"
                 >
                   <ChevronRightIcon width={14} height={14} className={`transition-transform ${open ? 'rotate-90' : ''}`} />
                 </button>
               ) : (
-                <span className="size-5 shrink-0" />
+                <span className="size-6 shrink-0 pointer-coarse:size-9" />
               )}
               <Link
                 href={`/pages/${node.id}`}
                 aria-current={active ? 'page' : undefined}
-                className="min-w-0 flex-1 truncate py-1"
+                className="min-w-0 flex-1 truncate py-1 pointer-coarse:py-2.5"
               >
                 {node.title}
               </Link>

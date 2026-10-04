@@ -39,14 +39,14 @@ export default async function PageView({ params }: PageProps<'/pages/[id]'>) {
         <nav aria-label="Caminho da página">
           <ol role="list" className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
             <li>
-              <Link href={`/spaces/${page.spaceId}`} className="hover:text-foreground">
+              <Link href={`/spaces/${page.spaceId}`} className="inline-block py-1 hover:text-foreground">
                 {space?.name ?? 'Espaço'}
               </Link>
             </li>
             {ancestors.map((ancestor) => (
               <li key={ancestor.id} className="flex items-center gap-1.5">
                 <span aria-hidden="true">/</span>
-                <Link href={`/pages/${ancestor.id}`} className="hover:text-foreground">
+                <Link href={`/pages/${ancestor.id}`} className="inline-block py-1 hover:text-foreground">
                   {ancestor.title}
                 </Link>
               </li>
