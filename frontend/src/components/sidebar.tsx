@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation';
 import { useMemo, useSyncExternalStore } from 'react';
 import { findAncestorIds } from '@/lib/tree';
 import type { NavigationSpace, TreeNode } from '@/lib/types';
-import { ChevronRightIcon } from './icons';
+import { ChevronRightIcon, PlusIcon } from './icons';
+import { AuthOnly } from './require-auth';
 
 // Escolhas explícitas de abrir/fechar (id → aberto), persistidas no localStorage.
 // Store externo lido com useSyncExternalStore: sem setState em efeito e sem divergência
@@ -104,6 +105,14 @@ export function Sidebar({ navigation }: SidebarProps) {
           )}
         </section>
       ))}
+      <AuthOnly>
+        <Link
+          href="/spaces/new"
+          className="mt-2 flex items-center gap-1.5 rounded-md px-2 py-1.5 text-muted transition-colors hover:bg-hover hover:text-foreground"
+        >
+          <PlusIcon /> Novo espaço
+        </Link>
+      </AuthOnly>
     </nav>
   );
 }
