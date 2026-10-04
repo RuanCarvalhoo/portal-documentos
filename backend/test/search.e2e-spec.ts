@@ -72,6 +72,15 @@ describe('Search (e2e)', () => {
     await http().get('/search').expect(400);
     const short = await http().get('/search?q=%20ab%20').expect(400);
 
-    expect(short.body.message).toContain('Use pelo menos 3 caracteres na busca');
+    expect(short.body.message).toContain('Use pelo menos 3 letras ou números seguidos na busca');
+    // Sem 3 letras/números seguidos o índice trigram não se aplica
+    await http().get('/search?q=---').expect(400);
+  });
+
+  it('treats LIKE wildcards literally', async () => {
+    // Sem escape, o _ casaria qualquer caractere e acharia a palavra do teste
+    const res = await http().get(`/search?q=${WORD.replace('a', '_')}`).expect(200);
+
+    expect(res.body.meta.total).toBe(0);
   });
 });

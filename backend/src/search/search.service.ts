@@ -6,6 +6,12 @@ import { SearchQueryDto } from './dto/search-query.dto';
 import { SearchResultDto } from './dto/search-result.dto';
 import { buildSnippet } from './snippet.util';
 
+// O Prisma não escapa os curingas do LIKE: sem isto, "a_b" acharia "axb" e "%" casaria tudo.
+// A barra invertida é o caractere de escape padrão do LIKE no Postgres.
+export function escapeLikeWildcards(term: string): string {
+  return term.replace(/[\\%_]/g, '\\$&');
+}
+
 @Injectable()
 export class SearchService {
   constructor(private readonly prisma: PrismaService) {}
@@ -13,10 +19,11 @@ export class SearchService {
   async search(query: SearchQueryDto): Promise<Paginated<SearchResultDto>> {
     // contains + insensitive vira ILIKE '%termo%', atendido pelos índices GIN trigram de
     // title e content (ADR 003). O termo vai como parâmetro da query, nunca concatenado.
+    const term = escapeLikeWildcards(query.q);
     const where = {
       OR: [
-        { title: { contains: query.q, mode: 'insensitive' } },
-        { content: { contains: query.q, mode: 'insensitive' } },
+        { title: { contains: term, mode: 'insensitive' } },
+        { content: { contains: term, mode: 'insensitive' } },
       ],
     } satisfies Prisma.PageWhereInput;
 

@@ -1,5 +1,5 @@
 import { PrismaService } from '../prisma/prisma.service';
-import { SearchService } from './search.service';
+import { escapeLikeWildcards, SearchService } from './search.service';
 
 describe('SearchService', () => {
   const prisma = {
@@ -36,6 +36,14 @@ describe('SearchService', () => {
     });
     expect(args.orderBy).toBeDefined();
     expect(prisma.page.count).toHaveBeenCalledWith({ where: args.where });
+  });
+
+  it('escapes LIKE wildcards so they match literally', async () => {
+    await service.search({ q: '100%_ok', page: 1, limit: 20 });
+
+    const { where } = prisma.page.findMany.mock.calls[0][0];
+    expect(where.OR[0].title.contains).toBe(escapeLikeWildcards('100%_ok'));
+    expect(escapeLikeWildcards('100%_ok')).toBe('100' + String.fromCharCode(92) + '%' + String.fromCharCode(92) + '_ok');
   });
 
   it('returns each hit with its space name and a snippet, plus pagination metadata', async () => {
