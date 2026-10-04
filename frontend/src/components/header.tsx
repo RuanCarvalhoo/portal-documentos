@@ -1,0 +1,100 @@
+'use client';
+
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { type FormEvent } from 'react';
+import { useAuth } from './auth-provider';
+import { CloseIcon, LogoIcon, MenuIcon, SearchIcon } from './icons';
+import { ThemeToggle } from './theme-toggle';
+
+interface HeaderProps {
+  menuOpen: boolean;
+  onToggleMenu: () => void;
+}
+
+export function Header({ menuOpen, onToggleMenu }: HeaderProps) {
+  const router = useRouter();
+
+  const search = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const q = new FormData(event.currentTarget).get('q')?.toString().trim();
+    if (q) {
+      router.push(`/search?q=${encodeURIComponent(q)}`);
+    }
+  };
+
+  return (
+    <header className="fixed inset-x-0 top-0 z-30 h-14 border-b border-border bg-background/85 backdrop-blur">
+      <div className="flex h-full items-center gap-2 px-3 sm:gap-4 sm:px-5">
+        <button
+          type="button"
+          onClick={onToggleMenu}
+          aria-controls="sidebar"
+          aria-expanded={menuOpen}
+          aria-label={menuOpen ? 'Fechar navegação' : 'Abrir navegação'}
+          className="grid size-8 place-items-center rounded-md text-muted hover:bg-hover hover:text-foreground md:hidden"
+        >
+          {menuOpen ? <CloseIcon /> : <MenuIcon />}
+        </button>
+        <Link href="/" className="flex shrink-0 items-center gap-2 text-foreground">
+          <LogoIcon />
+          <span className="font-serif text-lg tracking-tight">Documentação</span>
+        </Link>
+
+        {/* action="/search": a busca funciona até sem JavaScript */}
+        <form action="/search" role="search" onSubmit={search} className="ml-auto w-full max-w-xs">
+          <label htmlFor="busca" className="sr-only">
+            Buscar na documentação
+          </label>
+          <div className="flex h-8 items-center gap-2 rounded-md border border-border bg-surface px-2.5 text-muted focus-within:border-foreground/30">
+            <SearchIcon className="shrink-0" />
+            <input
+              id="busca"
+              name="q"
+              type="search"
+              placeholder="Buscar..."
+              minLength={3}
+              required
+              className="w-full min-w-0 bg-transparent text-sm text-foreground outline-none placeholder:text-muted"
+            />
+          </div>
+        </form>
+
+        <ThemeToggle />
+        <UserArea />
+      </div>
+    </header>
+  );
+}
+
+function UserArea() {
+  const { user, ready, logout } = useAuth();
+  if (!ready) {
+    // Reserva o espaço enquanto descobre se há sessão: o header não "pula"
+    return <span className="h-8 w-16 shrink-0" aria-hidden="true" />;
+  }
+  if (!user) {
+    return (
+      <Link
+        href="/login"
+        className="shrink-0 rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background transition-colors hover:opacity-90"
+      >
+        Entrar
+      </Link>
+    );
+  }
+  return (
+    <div className="flex shrink-0 items-center gap-2 text-sm">
+      <span className="hidden max-w-36 truncate text-muted sm:inline" title={user.email}>
+        {user.name}
+      </span>
+      <button
+        type="button"
+        onClick={logout}
+        className="rounded-md border border-border px-2.5 py-1 text-muted transition-colors hover:bg-hover hover:text-foreground"
+      >
+        Sair
+      </button>
+    </div>
+  );
+}
