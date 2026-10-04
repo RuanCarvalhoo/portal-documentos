@@ -22,8 +22,9 @@ describe('Auth (e2e)', () => {
   });
 
   afterAll(async () => {
-    await prisma.user.deleteMany({ where: { email: { startsWith: 'e2e-' } } });
-    await app.close();
+    // ?. : se o setup falhar, o erro original aparece em vez de um TypeError aqui
+    await prisma?.user.deleteMany({ where: { email: { startsWith: 'e2e-' } } });
+    await app?.close();
   });
 
   it('registers a user with a normalized e-mail and returns a token', async () => {
@@ -49,16 +50,26 @@ describe('Auth (e2e)', () => {
   it('validates the body with readable messages and rejects unknown fields', async () => {
     const res = await request(app.getHttpServer())
       .post('/auth/register')
-      .send({ name: '', email: 'invalido', password: '123', role: 'admin' })
+      .send({ name: '   ', email: 'invalido', password: '123', role: 'admin' })
       .expect(400);
 
     expect(res.body.message).toEqual(
       expect.arrayContaining([
         'property role should not exist',
+        'O nome deve ter entre 2 e 80 caracteres',
         'Informe um e-mail válido',
         'A senha deve ter pelo menos 8 caracteres',
       ]),
     );
+  });
+
+  it('rejects an e-mail that is not a string', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: ['a@example.com'], password })
+      .expect(400);
+
+    expect(res.body.message).toContain('Informe um e-mail válido');
   });
 
   it('logs in with valid credentials', async () => {
