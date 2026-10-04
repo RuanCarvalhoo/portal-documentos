@@ -18,6 +18,8 @@ export class PrismaService
       connectionString: configService.getOrThrow<string>('DATABASE_URL'),
       // O padrão do `pg` é esperar para sempre; com teto, o /health responde 503 em vez de travar
       connectionTimeoutMillis: 5_000,
+      // Teto por consulta: uma query desgovernada é cancelada em vez de prender a conexão
+      statement_timeout: 10_000,
     });
     super({ adapter });
   }
