@@ -46,7 +46,7 @@ export function Header({ menuOpen, onToggleMenu }: HeaderProps) {
           <label htmlFor="busca" className="sr-only">
             Buscar na documentação
           </label>
-          <div className="flex h-8 items-center gap-2 rounded-md border border-border bg-surface px-2.5 text-muted focus-within:border-foreground/30">
+          <div className="flex h-8 items-center gap-2 rounded-md border border-border bg-surface px-2.5 text-muted focus-within:border-foreground/30 focus-within:ring-2 focus-within:ring-accent-fg/30">
             <SearchIcon className="shrink-0" />
             <input
               id="busca"
