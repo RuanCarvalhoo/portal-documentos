@@ -80,3 +80,8 @@ export async function getNavigation(): Promise<NavigationSpace[] | null> {
     return null;
   }
 }
+
+/** Mensagens para mostrar ao usuário a partir de qualquer erro. */
+export function errorMessages(error: unknown): string[] {
+  return error instanceof ApiError ? error.messages : ['Erro inesperado. Tente novamente.'];
+}
