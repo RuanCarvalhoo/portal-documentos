@@ -16,6 +16,8 @@ export class PrismaService
     // Prisma 7 exige driver adapter; o PrismaPg usa o driver `pg`.
     const adapter = new PrismaPg({
       connectionString: configService.getOrThrow<string>('DATABASE_URL'),
+      // O padrão do `pg` é esperar para sempre; com teto, o /health responde 503 em vez de travar
+      connectionTimeoutMillis: 5_000,
     });
     super({ adapter });
   }
