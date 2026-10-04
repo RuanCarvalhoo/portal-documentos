@@ -42,6 +42,25 @@ describe('App foundation (e2e)', () => {
     expect(res.headers['access-control-allow-origin']).toBe('http://localhost:3000');
   });
 
+  it('does not reflect other origins', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/health')
+      .set('Origin', 'http://evil.example')
+      .expect(200);
+
+    expect(res.headers['access-control-allow-origin']).not.toBe('http://evil.example');
+  });
+
+  it('rejects oversized bodies with 413 in the standard envelope', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/health')
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ content: 'x'.repeat(200_000) }))
+      .expect(413);
+
+    expect(res.body).toMatchObject({ statusCode: 413, error: 'Payload Too Large' });
+  });
+
   it('publishes the OpenAPI document with bearer auth', async () => {
     const res = await request(app.getHttpServer()).get('/docs-json').expect(200);
 
