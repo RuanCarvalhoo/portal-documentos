@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono, Newsreader } from 'next/font/google';
 import { AppShell } from '@/components/app-shell';
 import { AuthProvider } from '@/components/auth-provider';
-import { getNavigation } from '@/lib/api';
+import { getNavigation } from '@/lib/server-api';
 import { THEME_SCRIPT } from '@/lib/theme';
 import './globals.css';
 

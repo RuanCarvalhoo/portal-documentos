@@ -4,8 +4,8 @@ import { DeleteButton } from '@/components/delete-button';
 import { PlusIcon } from '@/components/icons';
 import { AuthOnly } from '@/components/require-auth';
 import { primaryButton, secondaryButton } from '@/components/ui';
-import { getNavigation } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
+import { getNavigation } from '@/lib/server-api';
 import type { TreeNode } from '@/lib/types';
 import { getSpace } from '../space';
 
@@ -17,56 +17,63 @@ export async function generateMetadata({ params }: PageProps<'/spaces/[id]'>): P
 export default async function SpacePage({ params }: PageProps<'/spaces/[id]'>) {
   const { id } = await params;
   const [space, navigation] = await Promise.all([getSpace(id), getNavigation()]);
-  const pages = navigation?.find((item) => item.id === id)?.pages ?? [];
+  // Links e endpoints usam o id devolvido pela API, nunca o parâmetro bruto da URL
+  const pages = navigation?.find((item) => item.id === space.id)?.pages;
 
   return (
     <article>
       <p className="text-xs font-semibold tracking-[0.08em] text-muted uppercase">Espaço</p>
       <div className="mt-1 flex flex-wrap items-start justify-between gap-4">
         <h1 className="font-serif text-4xl tracking-tight sm:text-5xl">{space.name}</h1>
-        <AuthOnly>
-          <div className="flex flex-wrap gap-2">
-            <Link href={`/spaces/${id}/pages/new`} className={primaryButton}>
-              <PlusIcon /> Nova página
-            </Link>
-            <Link href={`/spaces/${id}/edit`} className={secondaryButton}>
-              Editar
-            </Link>
-            <DeleteButton
-              endpoint={`/spaces/${id}`}
-              confirmMessage={`Excluir o espaço "${space.name}" e todas as suas páginas? Esta ação não pode ser desfeita.`}
-              redirectTo="/"
-            />
-          </div>
-        </AuthOnly>
+        {/* Altura reservada: as ações só aparecem depois de confirmar a sessão (sem "pulo") */}
+        <div className="min-h-9">
+          <AuthOnly>
+            <div className="flex flex-wrap items-start gap-2">
+              <Link href={`/spaces/${space.id}/pages/new`} className={primaryButton}>
+                <PlusIcon /> Nova página
+              </Link>
+              <Link href={`/spaces/${space.id}/edit`} className={secondaryButton}>
+                Editar
+              </Link>
+              <DeleteButton
+                endpoint={`/spaces/${space.id}`}
+                confirmMessage={`Excluir o espaço "${space.name}" e todas as suas páginas? Esta ação não pode ser desfeita.`}
+                redirectTo="/"
+              />
+            </div>
+          </AuthOnly>
+        </div>
       </div>
       {space.description && <p className="mt-4 max-w-2xl text-lg text-muted">{space.description}</p>}
-      <p className="mt-3 text-xs text-muted">Atualizado em {formatDateTime(space.updatedAt)}</p>
+      <p className="mt-3 text-xs text-muted">
+        Atualizado em <time dateTime={space.updatedAt}>{formatDateTime(space.updatedAt)}</time>
+      </p>
 
       <h2 className="mt-12 border-b border-border pb-2 text-xs font-semibold tracking-[0.08em] text-muted uppercase">
         Páginas
       </h2>
-      {pages.length === 0 ? (
+      {pages === undefined ? (
+        <p className="mt-4 text-muted">Não foi possível carregar as páginas agora. Tente recarregar.</p>
+      ) : pages.length === 0 ? (
         <p className="mt-4 text-muted">Este espaço ainda não tem páginas.</p>
       ) : (
-        <PageList nodes={pages} />
+        <PageList nodes={pages} className="mt-3" />
       )}
     </article>
   );
 }
 
-function PageList({ nodes }: { nodes: TreeNode[] }) {
+function PageList({ nodes, className = '' }: { nodes: TreeNode[]; className?: string }) {
   return (
-    <ul className="mt-3 space-y-1.5">
+    // role="list": sem marcadores (Tailwind), alguns leitores de tela deixam de tratar como lista
+    <ul role="list" className={`space-y-1.5 ${className}`}>
       {nodes.map((node) => (
         <li key={node.id}>
           <Link href={`/pages/${node.id}`} className="underline-offset-4 hover:underline">
             {node.title}
           </Link>
           {node.children.length > 0 && (
-            <div className="mt-1.5 ml-1 border-l border-border pl-4">
-              <PageList nodes={node.children} />
-            </div>
+            <PageList nodes={node.children} className="mt-1.5 ml-1 border-l border-border pl-4" />
           )}
         </li>
       ))}

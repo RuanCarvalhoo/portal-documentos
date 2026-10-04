@@ -1,5 +1,3 @@
-import type { NavigationSpace } from './types';
-
 const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 // No servidor (Server Components dentro do Docker) a API é o serviço "backend" da rede interna;
@@ -68,17 +66,6 @@ function messagesOf(data: unknown): string[] {
     }
   }
   return ['Erro inesperado. Tente novamente.'];
-}
-
-/** Navegação da sidebar (Server Component). null se a API estiver indisponível. */
-export async function getNavigation(): Promise<NavigationSpace[] | null> {
-  try {
-    // Com teto: o layout de toda rota espera a navegação, então uma API lenta não pode travar o site
-    return await apiFetch<NavigationSpace[]>('/navigation', { timeoutMs: 5_000 });
-  } catch (error) {
-    console.error('Falha ao carregar a navegação', error);
-    return null;
-  }
 }
 
 /** Mensagens para mostrar ao usuário a partir de qualquer erro. */

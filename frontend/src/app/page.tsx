@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { PlusIcon } from '@/components/icons';
 import { AuthOnly } from '@/components/require-auth';
 import { secondaryButton } from '@/components/ui';
-import { getNavigation } from '@/lib/api';
+import { getNavigation } from '@/lib/server-api';
 import { countPages } from '@/lib/tree';
 
 export default async function HomePage() {
