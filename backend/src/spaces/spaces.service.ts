@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Paginated, PaginationQueryDto, toSkipTake } from '../common/pagination.dto';
 import { orNotFound } from '../common/prisma-errors';
 import { PrismaService } from '../prisma/prisma.service';
@@ -20,7 +20,7 @@ export class SpacesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(query: PaginationQueryDto): Promise<Paginated<SpaceDto>> {
-    // Página e total na mesma transação: os dois enxergam o mesmo estado da tabela
+    // Página e total enviados juntos em uma única ida ao banco
     const [data, total] = await this.prisma.$transaction([
       this.prisma.space.findMany({
         select: SPACE_FIELDS,
@@ -45,7 +45,10 @@ export class SpacesService {
     return this.prisma.space.create({ data: dto, select: SPACE_FIELDS });
   }
 
-  update(id: string, dto: UpdateSpaceDto): Promise<SpaceDto> {
+  async update(id: string, dto: UpdateSpaceDto): Promise<SpaceDto> {
+    if (Object.values(dto).every((value) => value === undefined)) {
+      throw new BadRequestException('Informe ao menos um campo para atualizar');
+    }
     return orNotFound(
       this.prisma.space.update({ where: { id }, data: dto, select: SPACE_FIELDS }),
       NOT_FOUND,
