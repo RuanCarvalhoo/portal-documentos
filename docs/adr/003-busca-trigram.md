@@ -17,8 +17,10 @@ A busca precisa encontrar páginas pelo **título e pelo conteúdo**, a partir d
 
 `contains` + `mode: 'insensitive'` do Prisma (gera `ILIKE '%termo%'`, com o termo como parâmetro) em `title` e `content`, atendido por dois índices GIN `gin_trgm_ops`. Regras derivadas de medição:
 
-- **Sempre com `ORDER BY`** (`updated_at DESC, id`): só com `LIMIT`, o planner preferiu seq scan — com 20 mil páginas, 3,4 s contra 34 ms usando os índices.
-- **Termo com no mínimo 3 caracteres**: trigramas precisam de 3 caracteres; abaixo disso o índice não é usado e a API responde 400.
+- **Sempre com `ORDER BY`** (`updated_at DESC, id`): só com `LIMIT`, o planner preferiu seq scan — com 20 mil páginas e um termo seletivo, 3,4 s contra 34 ms usando os índices. Termos frequentes ficam mais caros (0,4–1,2 s por consulta medidos), porque cada ocorrência é relida e conferida.
+- **Pelo menos 3 letras ou números seguidos**: os trigramas vêm de caracteres alfanuméricos; termos como `ab` ou `---` não usam o índice e varreriam a tabela inteira — a API responde 400.
+- **Curingas escapados**: o Prisma não escapa `%` e `_` do `LIKE`; a API escapa (senão `%` casaria tudo e `a_b` acharia `axb`).
+- **Proteções de custo**: rota pública com rate limit (30 buscas/min por IP) e `statement_timeout` de 10 s no pool de conexões.
 - Resultado paginado, com nome do espaço e um trecho do conteúdo ao redor do termo.
 
 Plano da consulta (com o seq scan desligado só para provar que o índice é aplicável à tabela pequena do seed):
@@ -34,7 +36,9 @@ Limit → Sort (updated_at DESC, id) → Bitmap Heap Scan on pages
 
 - Busca por substring indexada desde o início, só com PostgreSQL.
 - Sem relevância nem stemming: a ordem é "editadas recentemente primeiro"; "documentos" não acha "documento" por si só.
-- Os índices GIN deixam as escritas de página um pouco mais caras (aceitável: leitura domina).
+- Diferencia acentos: "configuracao" não acha "configuração" (resolvível com `unaccent`).
+- O total da paginação é um `count(*)` com o mesmo filtro: cada busca faz o trabalho duas vezes. Próximo passo: uma query só com `count(*) OVER()`.
+- O índice GIN de `content` é grande (medido ~55 MB para ~60 MB de texto sintético) e encarece cada escrita de página — aceitável num portal em que leitura domina.
 
 ## Quando eu mudaria de ideia
 
