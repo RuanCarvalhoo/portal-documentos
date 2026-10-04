@@ -29,6 +29,9 @@ Leitura do portal é pública; criar, editar e excluir exigem usuário autentica
 - Um token vazado vale até expirar — não há revogação. A expiração curta limita a janela.
 - `localStorage` é legível por JavaScript: um XSS roubaria o token. Mitigação: o Markdown é renderizado **sem HTML cru** (sem `rehype-raw`), fechando a principal porta de XSS do portal.
 
+- O `JWT_SECRET` padrão do `docker-compose.yml` é **público** (existe só para o avaliador subir o projeto sem configurar nada). Qualquer ambiente real precisa definir o próprio segredo.
+- O rate limit usa o IP da conexão. Atrás de um proxy reverso seria preciso configurar `trust proxy` com o número exato de saltos; com `true`, um `X-Forwarded-For` forjado burlaria o limite.
+
 ## Quando eu mudaria de ideia
 
 Com requisitos de revogação (logout em todos os dispositivos, bloqueio de conta) ou dados sensíveis, eu passaria para **refresh token rotativo em cookie `httpOnly` + `SameSite`** com access token curto em memória, e uma lista de revogação (ex.: Redis) — e adicionaria proteção CSRF.
