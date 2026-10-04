@@ -1,4 +1,7 @@
-import { IsInt, Min, ValidateIf } from 'class-validator';
+import { IsInt, Max, Min, ValidateIf } from 'class-validator';
+
+// version é int4 no Postgres: acima disso a query falharia com erro 500
+const MAX_VERSION = 2_147_483_647;
 import { PageContentRules, PageTitleRules, ParentIdRules } from './create-page.dto';
 
 export class UpdatePageDto {
@@ -22,5 +25,6 @@ export class UpdatePageDto {
    */
   @IsInt({ message: 'version deve ser um número inteiro' })
   @Min(1, { message: 'version deve ser maior ou igual a 1' })
+  @Max(MAX_VERSION, { message: 'version inválida' })
   version: number;
 }
