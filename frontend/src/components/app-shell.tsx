@@ -47,12 +47,12 @@ export function AppShell({ navigation, children }: AppShellProps) {
       <Header menuOpen={menuOpen} onToggleMenu={() => setMenuOpen(!menuOpen)} />
 
       {menuOpen && (
-        <div className="fixed inset-0 z-10 bg-black/20 md:hidden" onClick={() => setMenuOpen(false)} aria-hidden="true" />
+        <div className="fixed inset-0 z-10 bg-overlay md:hidden" onClick={() => setMenuOpen(false)} aria-hidden="true" />
       )}
       {/* Fechado no mobile: além de sair da tela, fica invisible para sair do foco do teclado */}
       <aside
         id="sidebar"
-        className={`fixed top-14 bottom-0 left-0 z-20 w-72 overflow-y-auto border-r border-border bg-background transition-[translate,visibility] md:visible md:translate-x-0 ${menuOpen ? 'translate-x-0' : 'invisible -translate-x-full'}`}
+        className={`fixed top-14 bottom-0 left-0 z-20 w-72 overflow-y-auto border-r border-border bg-background transition-[translate,visibility] motion-reduce:transition-none md:visible md:translate-x-0 ${menuOpen ? 'translate-x-0' : 'invisible -translate-x-full'}`}
       >
         <Sidebar navigation={navigation} />
       </aside>
