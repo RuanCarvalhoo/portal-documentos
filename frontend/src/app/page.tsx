@@ -1,21 +1,31 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { PlusIcon } from '@/components/icons';
+import { Pager } from '@/components/pager';
 import { AuthOnly } from '@/components/require-auth';
 import { secondaryButton } from '@/components/ui';
 import { apiFetch } from '@/lib/api';
+import { pageParam, totalPages } from '@/lib/pagination';
 import { getNavigation } from '@/lib/server-api';
 import { countPages } from '@/lib/tree';
 import type { Paginated, Space } from '@/lib/types';
 
-// Teto da paginação da API: suficiente para a lista de espaços de um portal
-const SPACES_LIMIT = 50;
+const PAGE_SIZE = 20;
 
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: PageProps<'/'>) {
+  const page = pageParam((await searchParams).page);
   const [spaces, navigation] = await Promise.all([
-    apiFetch<Paginated<Space>>(`/spaces?limit=${SPACES_LIMIT}`).catch(() => null),
+    apiFetch<Paginated<Space>>(`/spaces?page=${page}&limit=${PAGE_SIZE}`).catch(() => null),
     getNavigation(),
   ]);
-  const pageCount = new Map(navigation?.map((space) => [space.id, countPages(space.pages)]));
+  const pages = spaces ? totalPages(spaces.meta.total, PAGE_SIZE) : 1;
+  const pageHref = (target: number) => (target === 1 ? '/' : `/?page=${target}`);
+  // Página além do fim (link antigo, espaços excluídos): leva para a última página
+  if (spaces && spaces.data.length === 0 && spaces.meta.total > 0) {
+    redirect(pageHref(pages));
+  }
+  // Sem a navegação (API instável) a contagem seria "0 páginas" para todos: melhor omitir
+  const pageCount = navigation && new Map(navigation.map((space) => [space.id, countPages(space.pages)]));
 
   return (
     <div>
@@ -41,7 +51,7 @@ export default async function HomePage() {
       ) : (
         <ul role="list" className="divide-y divide-border">
           {spaces.data.map((space) => {
-            const total = pageCount.get(space.id) ?? 0;
+            const total = pageCount?.get(space.id) ?? 0;
             return (
               <li key={space.id}>
                 <Link
@@ -54,15 +64,18 @@ export default async function HomePage() {
                     </span>
                     {space.description && <span className="mt-1 block text-sm text-muted">{space.description}</span>}
                   </span>
-                  <span className="shrink-0 text-sm text-muted tabular-nums">
-                    {total === 1 ? '1 página' : `${total} páginas`}
-                  </span>
+                  {pageCount && (
+                    <span className="shrink-0 text-sm text-muted tabular-nums">
+                      {total === 1 ? '1 página' : `${total} páginas`}
+                    </span>
+                  )}
                 </Link>
               </li>
             );
           })}
         </ul>
       )}
+      <Pager label="Páginas de espaços" page={page} totalPages={pages} href={pageHref} />
     </div>
   );
 }

@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { Pager } from '@/components/pager';
 import { ApiError, apiFetch } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
 import { highlightParts } from '@/lib/highlight';
+import { pageParam, totalPages as countPages } from '@/lib/pagination';
 import type { Paginated, SearchResult } from '@/lib/types';
 
 const PAGE_SIZE = 10;
-// Mesmo teto de página da API (acima disso ela responde 400)
-const MAX_PAGE = 100_000;
 
 export async function generateMetadata({ searchParams }: PageProps<'/search'>): Promise<Metadata> {
   const { q } = await searchParams;
@@ -18,8 +18,7 @@ export async function generateMetadata({ searchParams }: PageProps<'/search'>): 
 export default async function SearchPage({ searchParams }: PageProps<'/search'>) {
   const params = await searchParams;
   const q = typeof params.q === 'string' ? params.q.trim() : '';
-  const requested = Number.parseInt(typeof params.page === 'string' ? params.page : '1', 10) || 1;
-  const page = Math.min(MAX_PAGE, Math.max(1, requested));
+  const page = pageParam(params.page);
 
   let results: Paginated<SearchResult> | null = null;
   let errors: string[] = [];
@@ -32,7 +31,7 @@ export default async function SearchPage({ searchParams }: PageProps<'/search'>)
       errors = error instanceof ApiError ? error.messages : ['Não foi possível buscar agora.'];
     }
   }
-  const totalPages = results ? Math.max(1, Math.ceil(results.meta.total / PAGE_SIZE)) : 1;
+  const totalPages = results ? countPages(results.meta.total, PAGE_SIZE) : 1;
   const pageHref = (target: number) => `/search?${new URLSearchParams({ q, page: String(target) })}`;
   // Página além do fim (link antigo, URL editada): leva para a última página com resultados
   if (results && results.data.length === 0 && results.meta.total > 0) {
@@ -94,27 +93,7 @@ export default async function SearchPage({ searchParams }: PageProps<'/search'>)
         </ol>
       )}
 
-      {results && totalPages > 1 && (
-        <nav aria-label="Páginas de resultados" className="mt-6 flex items-center justify-between text-sm">
-          {page > 1 ? (
-            <Link href={pageHref(page - 1)} className="underline underline-offset-4">
-              Anterior
-            </Link>
-          ) : (
-            <span />
-          )}
-          <span className="text-muted">
-            Página {page} de {totalPages}
-          </span>
-          {page < totalPages ? (
-            <Link href={pageHref(page + 1)} className="underline underline-offset-4">
-              Próxima
-            </Link>
-          ) : (
-            <span />
-          )}
-        </nav>
-      )}
+      <Pager label="Páginas de resultados" page={page} totalPages={totalPages} href={pageHref} />
     </div>
   );
 }
