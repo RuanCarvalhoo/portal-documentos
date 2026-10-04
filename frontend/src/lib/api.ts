@@ -24,10 +24,12 @@ interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
   token?: string | null;
+  /** Cancela a requisição depois deste tempo (ms) */
+  timeoutMs?: number;
 }
 
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, token } = options;
+  const { method = 'GET', body, token, timeoutMs } = options;
   let response: Response;
   try {
     response = await fetch(baseUrl() + path, {
@@ -39,6 +41,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
       body: body === undefined ? undefined : JSON.stringify(body),
       // Dados sempre atuais: a documentação muda a cada edição
       cache: 'no-store',
+      signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
     });
   } catch {
     throw new ApiError(0, ['Não foi possível conectar à API. Tente novamente em instantes.']);
@@ -70,7 +73,8 @@ function messagesOf(data: unknown): string[] {
 /** Navegação da sidebar (Server Component). null se a API estiver indisponível. */
 export async function getNavigation(): Promise<NavigationSpace[] | null> {
   try {
-    return await apiFetch<NavigationSpace[]>('/navigation');
+    // Com teto: o layout de toda rota espera a navegação, então uma API lenta não pode travar o site
+    return await apiFetch<NavigationSpace[]>('/navigation', { timeoutMs: 5_000 });
   } catch (error) {
     console.error('Falha ao carregar a navegação', error);
     return null;
