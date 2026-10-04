@@ -27,6 +27,8 @@ services:
       # Dentro da rede do Compose o banco é db:5432 (a 5433 é só a porta publicada no host)
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-portal-documentos}
       PORT: 3001
+      # Única origem liberada no CORS: o frontend acessado pelo navegador
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
     ports:
       - "3001:3001"
     depends_on:

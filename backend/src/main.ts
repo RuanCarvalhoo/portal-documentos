@@ -1,10 +1,13 @@
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { configureApp } from './app.setup';
 
-async function bootstrap() {
+async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
+  configureApp(app);
   // SIGTERM (docker stop) dispara onModuleDestroy → fecha o pool do Prisma
   app.enableShutdownHooks();
-  await app.listen(process.env.PORT ?? 3001);
+  await app.listen(app.get(ConfigService).getOrThrow<number>('PORT'));
 }
-bootstrap();
+void bootstrap();
