@@ -24,5 +24,62 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  // Duas relações com Page → precisam de nome para o Prisma saber qual FK é qual
+  createdPages Page[] @relation("PageCreatedBy")
+  updatedPages Page[] @relation("PageUpdatedBy")
+
   @@map("users")
+}
+
+model Space {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  pages Page[]
+
+  @@map("spaces")
+}
+
+// Hierarquia por lista de adjacência (parentId): a árvore de um espaço sai em 1 query
+// e é montada em memória em O(n). Ver docs/adr/002-modelagem-da-arvore.md
+model Page {
+  id      String @id @default(uuid(7)) @db.Uuid
+  title   String
+  content String @default("") @db.Text
+
+  spaceId String @map("space_id") @db.Uuid
+  space   Space  @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  parentId String? @map("parent_id") @db.Uuid
+  parent   Page?   @relation("PageHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children Page[]  @relation("PageHierarchy")
+
+  position Int @default(0)
+  // Concorrência otimista: o PATCH envia a versão lida; se não bater → 409
+  version  Int @default(1)
+
+  createdById String @map("created_by_id") @db.Uuid
+  createdBy   User   @relation("PageCreatedBy", fields: [createdById], references: [id])
+  updatedById String @map("updated_by_id") @db.Uuid
+  updatedBy   User   @relation("PageUpdatedBy", fields: [updatedById], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  // Árvore: filtra por espaço, agrupa por pai, ordena por posição. Pelo prefixo à esquerda
+  // também serve buscas só por space_id → sem índice separado em space_id.
+  @@index([spaceId, parentId, position])
+  // O Postgres não indexa FKs sozinho: sem estes, cada ON DELETE CASCADE / checagem de FK
+  // faria seq scan em pages.
+  @@index([parentId])
+  @@index([createdById])
+  @@index([updatedById])
+  // Busca por substring (ILIKE '%termo%' / contains insensitive): B-tree não ajuda com curinga
+  // à esquerda; trigramas + GIN sim. A extensão pg_trgm é criada na migration (SQL manual).
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "pages_title_trgm_idx")
+  @@index([content(ops: raw("gin_trgm_ops"))], type: Gin, map: "pages_content_trgm_idx")
+  @@map("pages")
 }
