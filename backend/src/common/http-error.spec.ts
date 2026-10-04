@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, HttpException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { toHttpError } from './http-error';
 
@@ -36,6 +36,27 @@ describe('toHttpError', () => {
     expect(toHttpError(new Error('password=secret leaked'))).toEqual({
       status: 500,
       message: 'Erro interno do servidor',
+    });
+  });
+});
+
+describe('toHttpError edge cases', () => {
+  it('honours 4xx errors raised by the body parser', () => {
+    const tooLarge = Object.assign(new Error('request entity too large'), {
+      status: 413,
+      expose: true,
+    });
+    expect(toHttpError(tooLarge)).toEqual({ status: 413, message: 'request entity too large' });
+  });
+
+  it('does not trust a status on errors not marked as exposable', () => {
+    expect(toHttpError(Object.assign(new Error('boom'), { status: 400 })).status).toBe(500);
+  });
+
+  it('falls back to the exception message when the body has no usable message', () => {
+    expect(toHttpError(new HttpException({ detail: 'x' }, 503))).toEqual({
+      status: 503,
+      message: 'Http Exception',
     });
   });
 });

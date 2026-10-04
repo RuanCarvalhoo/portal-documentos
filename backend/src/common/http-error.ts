@@ -21,15 +21,44 @@ const INTERNAL_ERROR: HttpError = {
 /** Traduz qualquer exceção para status + mensagem segura de expor ao cliente. */
 export function toHttpError(exception: unknown): HttpError {
   if (exception instanceof HttpException) {
-    const body = exception.getResponse();
-    const message =
-      typeof body === 'string'
-        ? body
-        : ((body as { message?: string | string[] }).message ?? exception.message);
-    return { status: exception.getStatus(), message };
+    return {
+      status: exception.getStatus(),
+      message: messageOf(exception.getResponse()) ?? exception.message,
+    };
   }
   if (exception instanceof Prisma.PrismaClientKnownRequestError) {
     return { ...(PRISMA_ERRORS[exception.code] ?? INTERNAL_ERROR) };
   }
+  if (isExposedClientError(exception)) {
+    return { status: exception.status, message: exception.message };
+  }
   return { ...INTERNAL_ERROR };
+}
+
+function messageOf(body: unknown): string | string[] | undefined {
+  if (typeof body === 'string') {
+    return body;
+  }
+  if (typeof body === 'object' && body !== null && 'message' in body) {
+    const { message } = body;
+    const isStringList = Array.isArray(message) && message.every((m) => typeof m === 'string');
+    if (typeof message === 'string' || isStringList) {
+      return message as string | string[];
+    }
+  }
+  return undefined;
+}
+
+// Erros do body-parser (pacote http-errors: 413, 415, JSON inválido...) não são HttpException,
+// mas trazem status 4xx e expose=true — o mesmo critério do BaseExceptionFilter do Nest.
+function isExposedClientError(exception: unknown): exception is Error & { status: number } {
+  return (
+    exception instanceof Error &&
+    'status' in exception &&
+    typeof exception.status === 'number' &&
+    exception.status >= 400 &&
+    exception.status < 500 &&
+    'expose' in exception &&
+    exception.expose === true
+  );
 }
