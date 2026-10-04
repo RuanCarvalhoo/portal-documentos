@@ -1,7 +1,8 @@
 // Seed idempotente: roda a cada start do container (npm run db:seed).
-// - Usuário demo: upsert por e-mail (nunca duplica).
-// - Espaços/páginas: só são criados se ainda não houver nenhum espaço, numa transação
-//   (se falhar no meio, nada fica pela metade e o próximo start tenta de novo).
+// Tudo numa transação com advisory lock (se falhar no meio, nada fica pela metade e o
+// próximo start tenta de novo; instâncias concorrentes não duplicam):
+// - Usuário demo: criado só se o e-mail não existir.
+// - Espaços/páginas: criados só se ainda não houver nenhum espaço.
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { hash } from 'bcryptjs';
@@ -267,24 +268,26 @@ async function main(): Promise<void> {
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
   try {
-    const user = await prisma.user.upsert({
-      where: { email: DEMO_USER.email },
-      update: {},
-      create: {
-        name: DEMO_USER.name,
-        email: DEMO_USER.email,
-        passwordHash: await hash(DEMO_USER.password, BCRYPT_ROUNDS),
-      },
-      select: { id: true },
-    });
-
-    if ((await prisma.space.count()) > 0) {
-      console.info('Seed: espaços já existem, nada a criar.');
-      return;
-    }
-
     const pageCount = await prisma.$transaction(
       async (tx) => {
+        // Lock da transação: duas instâncias subindo juntas não fazem o "conta e insere" ao
+        // mesmo tempo (a segunda espera e então vê os espaços já criados).
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(7001)`;
+
+        const user =
+          (await tx.user.findUnique({ where: { email: DEMO_USER.email }, select: { id: true } })) ??
+          (await tx.user.create({
+            data: {
+              name: DEMO_USER.name,
+              email: DEMO_USER.email,
+              passwordHash: await hash(DEMO_USER.password, BCRYPT_ROUNDS),
+            },
+            select: { id: true },
+          }));
+
+        if ((await tx.space.count()) > 0) {
+          return null;
+        }
         let total = 0;
         for (const space of SPACES) {
           const { id } = await tx.space.create({
@@ -297,7 +300,11 @@ async function main(): Promise<void> {
       },
       { timeout: 30_000 },
     );
-    console.info(`Seed: ${SPACES.length} espaços e ${pageCount} páginas criados.`);
+    console.info(
+      pageCount === null
+        ? 'Seed: espaços já existem, nada a criar.'
+        : `Seed: ${SPACES.length} espaços e ${pageCount} páginas criados.`,
+    );
   } finally {
     await prisma.$disconnect();
   }
