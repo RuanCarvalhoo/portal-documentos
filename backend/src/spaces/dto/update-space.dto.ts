@@ -1,5 +1,18 @@
-import { PartialType } from '@nestjs/swagger';
-import { CreateSpaceDto } from './create-space.dto';
+import { ValidateIf } from 'class-validator';
+import { SpaceDescriptionRules, SpaceNameRules } from './create-space.dto';
 
-// PartialType do pacote swagger: mantém as validações e a documentação, com campos opcionais
-export class UpdateSpaceDto extends PartialType(CreateSpaceDto) {}
+// Sem PartialType: o IsOptional que ele adiciona também deixa passar null, e null no nome
+// (coluna obrigatória) chegaria ao banco como erro 500.
+export class UpdateSpaceDto {
+  /**
+   * Novo nome (omitir mantém o atual; null não é aceito)
+   * @example Arquitetura de Software
+   */
+  @ValidateIf((_, value) => value !== undefined)
+  @SpaceNameRules()
+  name?: string;
+
+  /** Nova descrição (null ou texto vazio remove a descrição) */
+  @SpaceDescriptionRules()
+  description?: string | null;
+}
