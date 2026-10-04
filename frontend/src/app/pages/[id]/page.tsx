@@ -36,18 +36,22 @@ export default async function PageView({ params }: PageProps<'/pages/[id]'>) {
   return (
     <div className={showToc ? 'xl:grid xl:grid-cols-[minmax(0,1fr)_13rem] xl:gap-10' : ''}>
       <article className="min-w-0">
-        <nav aria-label="Caminho da página" className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
-          <Link href={`/spaces/${page.spaceId}`} className="hover:text-foreground">
-            {space?.name ?? 'Espaço'}
-          </Link>
-          {ancestors.map((ancestor) => (
-            <span key={ancestor.id} className="flex items-center gap-1.5">
-              <span aria-hidden="true">/</span>
-              <Link href={`/pages/${ancestor.id}`} className="hover:text-foreground">
-                {ancestor.title}
+        <nav aria-label="Caminho da página">
+          <ol role="list" className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
+            <li>
+              <Link href={`/spaces/${page.spaceId}`} className="hover:text-foreground">
+                {space?.name ?? 'Espaço'}
               </Link>
-            </span>
-          ))}
+            </li>
+            {ancestors.map((ancestor) => (
+              <li key={ancestor.id} className="flex items-center gap-1.5">
+                <span aria-hidden="true">/</span>
+                <Link href={`/pages/${ancestor.id}`} className="hover:text-foreground">
+                  {ancestor.title}
+                </Link>
+              </li>
+            ))}
+          </ol>
         </nav>
 
         <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
@@ -97,12 +101,12 @@ export default async function PageView({ params }: PageProps<'/pages/[id]'>) {
       </article>
 
       {showToc && (
-        <aside aria-label="Nesta página" className="hidden xl:block">
+        <nav aria-label="Nesta página" className="hidden xl:block">
           <div className="sticky top-24">
             <p className="mb-3 text-xs font-semibold tracking-[0.08em] text-muted uppercase">Nesta página</p>
             <TableOfContents items={toc} />
           </div>
-        </aside>
+        </nav>
       )}
     </div>
   );
