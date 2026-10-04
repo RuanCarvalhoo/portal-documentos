@@ -1,0 +1,27 @@
+// Prisma schema — fonte da verdade do modelo de dados.
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  // O backend compila para CommonJS (tsconfig nodenext sem "type": "module")
+  moduleFormat        = "cjs"
+  // Imports sem extensão, como o resto do código CJS (o resolvedor do Jest não mapeia .js -> .ts)
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Convenção: camelCase no código, snake_case no banco (@map / @@map)
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("users")
+}
