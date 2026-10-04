@@ -17,8 +17,8 @@ export default async function NewPagePage({ params, searchParams }: PageProps<'/
 
   return (
     <div>
-      <p className="text-sm text-muted">{space.name}</p>
-      <h1 className="mt-1 mb-8 font-serif text-4xl tracking-tight">Nova página</h1>
+      <h1 className="font-serif text-4xl tracking-tight">Nova página</h1>
+      <p className="mt-2 mb-8 text-muted">Em {space.name}</p>
       <RequireAuth>
         <PageForm spaceId={space.id} parentOptions={parentOptions} defaultParentId={defaultParentId} />
       </RequireAuth>
