@@ -43,5 +43,7 @@ test('stays fast on adversarial input', () => {
   const started = performance.now();
   extractToc(`## a${' '.repeat(40_000)}x\n${'['.repeat(10_000)}`);
 
-  assert.ok(performance.now() - started < 1_000, 'extractToc demorou demais');
+  // ~0,5 s numa máquina comum; backtracking catastrófico levaria minutos. A folga evita falso
+  // alarme quando os arquivos de teste rodam em paralelo numa máquina carregada.
+  assert.ok(performance.now() - started < 3_000, 'extractToc demorou demais');
 });
