@@ -3,7 +3,8 @@ import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, ValidateIf } from 'class-validator';
 import { trim } from '../../common/transforms';
 
-// Teto do Markdown: mantém o corpo da requisição abaixo do limite do body parser (100 KB)
+// Teto do Markdown em caracteres. O corpo da requisição ainda passa pelo limite do body parser
+// (100 KB): texto com muitos caracteres multibyte pode receber 413 antes de chegar aqui.
 export const MAX_CONTENT_LENGTH = 50_000;
 
 export const PageTitleRules = (): PropertyDecorator =>

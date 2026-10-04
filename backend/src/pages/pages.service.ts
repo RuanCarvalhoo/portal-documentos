@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { orNotFound } from '../common/prisma-errors';
+import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePageDto } from './dto/create-page.dto';
 import { NavigationSpaceDto, PageDto } from './dto/page.dto';
@@ -25,6 +26,8 @@ const PAGE_FIELDS = {
   createdBy: AUTHOR,
   updatedBy: AUTHOR,
 } as const;
+type Tx = Prisma.TransactionClient;
+
 const NOT_FOUND = 'Página não encontrada';
 const INVALID_PARENT = 'A página pai deve existir e estar no mesmo espaço';
 
@@ -33,32 +36,29 @@ export class PagesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(spaceId: string, dto: CreatePageDto, userId: string): Promise<PageDto> {
-    const space = await this.prisma.space.findUnique({ where: { id: spaceId }, select: { id: true } });
-    if (!space) {
-      throw new NotFoundException('Espaço não encontrado');
-    }
-    const parentId = dto.parentId ?? null;
-    if (parentId) {
-      const parent = await this.prisma.page.findUnique({
-        where: { id: parentId },
-        select: { spaceId: true },
-      });
-      if (parent?.spaceId !== spaceId) {
-        throw new BadRequestException(INVALID_PARENT);
+    return this.prisma.$transaction(async (tx) => {
+      if (!(await this.lockSpace(tx, spaceId))) {
+        throw new NotFoundException('Espaço não encontrado');
       }
-    }
-
-    return this.prisma.page.create({
-      data: {
-        title: dto.title,
-        content: dto.content ?? '',
-        spaceId,
-        parentId,
-        position: await this.nextPosition(spaceId, parentId),
-        createdById: userId,
-        updatedById: userId,
-      },
-      select: PAGE_FIELDS,
+      const parentId = dto.parentId ?? null;
+      if (parentId) {
+        const parent = await tx.page.findUnique({ where: { id: parentId }, select: { spaceId: true } });
+        if (parent?.spaceId !== spaceId) {
+          throw new BadRequestException(INVALID_PARENT);
+        }
+      }
+      return tx.page.create({
+        data: {
+          title: dto.title,
+          content: dto.content ?? '',
+          spaceId,
+          parentId,
+          position: await this.nextPosition(tx, spaceId, parentId),
+          createdById: userId,
+          updatedById: userId,
+        },
+        select: PAGE_FIELDS,
+      });
     });
   }
 
@@ -77,37 +77,43 @@ export class PagesService {
     }
     const current = await this.prisma.page.findUnique({
       where: { id },
-      select: { id: true, spaceId: true, parentId: true },
+      select: { spaceId: true, parentId: true },
     });
     if (!current) {
       throw new NotFoundException(NOT_FOUND);
     }
-
     const moving = changes.parentId !== undefined && changes.parentId !== current.parentId;
-    if (moving && changes.parentId) {
-      await this.assertValidNewParent(current.id, current.spaceId, changes.parentId);
-    }
 
-    // Concorrência otimista: só grava se ninguém salvou depois da versão que o cliente leu.
-    // updateMany não dispara @updatedAt, por isso updatedAt vai explícito.
-    const { count } = await this.prisma.page.updateMany({
-      where: { id, version },
-      data: {
-        ...changes,
-        ...(moving && {
-          position: await this.nextPosition(current.spaceId, changes.parentId ?? null),
-        }),
-        updatedById: userId,
-        updatedAt: new Date(),
-        version: { increment: 1 },
-      },
-    });
-    if (count === 0) {
-      throw new ConflictException(
-        'Esta página foi alterada por outra pessoa. Recarregue para ver a versão atual.',
-      );
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        let position: number | undefined;
+        if (moving) {
+          await this.lockSpace(tx, current.spaceId);
+          if (changes.parentId) {
+            await this.assertValidNewParent(tx, id, current.spaceId, changes.parentId);
+          }
+          position = await this.nextPosition(tx, current.spaceId, changes.parentId ?? null);
+        }
+        // Concorrência otimista num único UPDATE ... WHERE id = ? AND version = ? RETURNING:
+        // só grava se ninguém salvou depois da versão que o cliente leu
+        return tx.page.update({
+          where: { id, version },
+          data: { ...changes, position, updatedById: userId, version: { increment: 1 } },
+          select: PAGE_FIELDS,
+        });
+      });
+    } catch (error: unknown) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        // Nenhuma linha casou: ou a versão ficou velha (409) ou a página sumiu no meio (404)
+        const stillExists = (await this.prisma.page.count({ where: { id } })) > 0;
+        throw stillExists
+          ? new ConflictException(
+              'Esta página foi alterada por outra pessoa. Recarregue para ver a versão atual.',
+            )
+          : new NotFoundException(NOT_FOUND);
+      }
+      throw error;
     }
-    return this.findOne(id);
   }
 
   /** Exclui a página e, por ON DELETE CASCADE, todas as subpáginas. */
@@ -141,9 +147,27 @@ export class PagesService {
     }));
   }
 
-  private async assertValidNewParent(pageId: string, spaceId: string, parentId: string): Promise<void> {
+  /**
+   * Trava a linha do espaço até o fim da transação: criações e movimentações no mesmo espaço
+   * entram em fila, então duas movimentações opostas simultâneas não criam um ciclo e duas
+   * criações não disputam a mesma posição. Devolve false se o espaço não existe.
+   */
+  private async lockSpace(tx: Tx, spaceId: string): Promise<boolean> {
+    // Tagged template: o id vira parâmetro da query ($1), nunca SQL concatenado
+    const rows = await tx.$queryRaw<{ id: string }[]>`
+      SELECT id FROM spaces WHERE id = ${spaceId}::uuid FOR UPDATE
+    `;
+    return rows.length > 0;
+  }
+
+  private async assertValidNewParent(
+    tx: Tx,
+    pageId: string,
+    spaceId: string,
+    parentId: string,
+  ): Promise<void> {
     // Uma query traz a hierarquia do espaço; a checagem de ciclo roda em memória
-    const rows = await this.prisma.page.findMany({
+    const rows = await tx.page.findMany({
       where: { spaceId },
       select: { id: true, parentId: true },
     });
@@ -159,8 +183,8 @@ export class PagesService {
   }
 
   // Nova página (ou página movida) entra no fim da lista de irmãos
-  private async nextPosition(spaceId: string, parentId: string | null): Promise<number> {
-    const { _max } = await this.prisma.page.aggregate({
+  private async nextPosition(tx: Tx, spaceId: string, parentId: string | null): Promise<number> {
+    const { _max } = await tx.page.aggregate({
       where: { spaceId, parentId },
       _max: { position: true },
     });
