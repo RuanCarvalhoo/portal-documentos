@@ -21,7 +21,7 @@ PostgreSQL 17 (`postgres:17-alpine`), acessado via Prisma 7 com o driver adapter
 - Integridade garantida pelo banco: excluir um espaço exclui suas páginas; excluir uma página exclui as subpáginas (FKs com `CASCADE`).
 - Busca por substring indexada desde o início com `pg_trgm` + GIN (ver ADR 003), sem infraestrutura extra.
 - Conteúdos grandes vão para TOAST automaticamente, então listar páginas **sem** `content` continua barato.
-- O Postgres não indexa FKs sozinho: criei índices explícitos em `parent_id`, `created_by_id` e `updated_by_id`.
+- O Postgres não indexa FKs sozinho. Indexei `parent_id`, porque cada `ON DELETE CASCADE` da hierarquia procura as filhas por ele. `created_by_id`/`updated_by_id` ficaram **sem** índice de propósito: ele só ajudaria ao excluir usuários (o que o sistema não faz) e custaria em toda escrita de página — por isso a migration `drop_unused_page_author_indexes` os remove.
 - IDs `uuid` v7 (ordenados no tempo) para não fragmentar o índice da PK como o v4 aleatório.
 
 ## Quando eu mudaria de ideia
