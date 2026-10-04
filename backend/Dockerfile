@@ -3,9 +3,10 @@ FROM node:24-alpine3.22 AS build
 # openssl: o Prisma detecta a versão para baixar o schema engine (musl) correto
 RUN apk add --no-cache openssl
 WORKDIR /app
-# O postinstall (prisma generate) precisa do schema e do config antes do npm ci
+# O postinstall (prisma generate) precisa do schema e do config antes do npm ci.
+# Só o schema: migrations/seed novos não invalidam o cache da camada de install.
 COPY package.json package-lock.json prisma7.config.ts ./
-COPY prisma ./prisma
+COPY prisma/schema.prisma ./prisma/schema.prisma
 RUN npm ci
 COPY . .
 RUN npm run build
