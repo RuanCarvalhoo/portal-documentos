@@ -54,7 +54,13 @@ export function SpaceForm({ space }: { space?: Space }) {
       const saved = space
         ? await apiFetch<Space>(`/spaces/${space.id}`, { method: 'PATCH', body, token })
         : await apiFetch<Space>('/spaces', { method: 'POST', body, token });
-      router.push(`/spaces/${saved.id}`);
+      // Edição: replace, para o Voltar não reabrir o formulário já salvo
+      const destination = `/spaces/${saved.id}`;
+      if (space) {
+        router.replace(destination);
+      } else {
+        router.push(destination);
+      }
       // A sidebar vem do layout, que não é refeito na navegação do cliente
       router.refresh();
     } catch (error) {

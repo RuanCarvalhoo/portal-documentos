@@ -18,31 +18,38 @@ export function DeleteButton({ endpoint, confirmMessage, redirectTo, label = 'Ex
   const { token } = useAuth();
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const remove = async () => {
     if (pending || !window.confirm(confirmMessage)) {
       return;
     }
     setPending(true);
+    setError(null);
     try {
       await apiFetch(endpoint, { method: 'DELETE', token });
       router.push(redirectTo);
       // Atualiza a sidebar (layout), que não é refeita na navegação do cliente
       router.refresh();
-    } catch (error) {
-      window.alert(errorMessages(error).join('\n'));
+    } catch (failure) {
+      setError(errorMessages(failure).join(' '));
       setPending(false);
     }
   };
 
   return (
-    <button
-      type="button"
-      onClick={remove}
-      aria-disabled={pending}
-      className="rounded-md border border-border px-3 py-1.5 text-sm text-danger-fg transition-colors hover:bg-danger-bg aria-disabled:opacity-60"
-    >
-      {pending ? 'Excluindo...' : label}
-    </button>
+    <span className="inline-flex flex-col items-end gap-1">
+      <button
+        type="button"
+        onClick={remove}
+        aria-disabled={pending}
+        className="inline-flex h-9 items-center rounded-md border border-border px-3.5 text-sm text-danger-fg transition-colors hover:bg-danger-bg aria-disabled:opacity-60"
+      >
+        {pending ? 'Excluindo...' : label}
+      </button>
+      <span role="alert" className="max-w-56 text-right text-xs text-danger-fg">
+        {error}
+      </span>
+    </span>
   );
 }
