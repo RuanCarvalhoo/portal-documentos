@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { type FormEvent } from 'react';
 import { useAuth } from './auth-provider';
 import { CloseIcon, LogoIcon, MenuIcon, SearchIcon } from './icons';
@@ -69,6 +69,12 @@ export function Header({ menuOpen, onToggleMenu }: HeaderProps) {
 
 function UserArea() {
   const { user, ready, logout } = useAuth();
+  const pathname = usePathname();
+  // Depois de entrar, volta para onde estava (exceto das próprias telas de acesso)
+  const loginHref =
+    pathname === '/login' || pathname === '/register'
+      ? '/login'
+      : `/login?next=${encodeURIComponent(pathname)}`;
   if (!ready) {
     // Reserva o espaço enquanto descobre se há sessão: o header não "pula"
     return <span className="h-8 w-16 shrink-0" aria-hidden="true" />;
@@ -76,7 +82,7 @@ function UserArea() {
   if (!user) {
     return (
       <Link
-        href="/login"
+        href={loginHref}
         className="shrink-0 rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background transition-colors hover:opacity-90"
       >
         Entrar
