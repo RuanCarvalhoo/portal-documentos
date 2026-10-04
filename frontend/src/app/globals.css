@@ -19,6 +19,7 @@
   --danger-fg: #9f2f2d;
   --success-bg: #edf3ec;
   --success-fg: #346538;
+  --overlay: rgba(25, 25, 25, 0.2);
   --hl-keyword: #1f6c9f;
   --hl-string: #346538;
   --hl-number: #956400;
@@ -40,6 +41,7 @@
   --danger-fg: #f2a19c;
   --success-bg: #22331f;
   --success-fg: #9bd08f;
+  --overlay: rgba(0, 0, 0, 0.5);
   --hl-keyword: #8ccbf5;
   --hl-string: #9bd08f;
   --hl-number: #e5c07b;
@@ -61,6 +63,7 @@
   --color-danger-fg: var(--danger-fg);
   --color-success-bg: var(--success-bg);
   --color-success-fg: var(--success-fg);
+  --color-overlay: var(--overlay);
   --font-sans: var(--font-geist-sans), "Helvetica Neue", sans-serif;
   --font-serif: var(--font-newsreader), Georgia, serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
@@ -75,6 +78,17 @@ body {
   background: var(--background);
   color: var(--foreground);
   line-height: 1.6;
+}
+
+/* Superfícies do navegador também seguem o tema: foco, cursor de texto e barra de rolagem */
+:focus-visible {
+  outline: 2px solid var(--accent-fg);
+  outline-offset: 2px;
+}
+
+html {
+  caret-color: var(--accent-fg);
+  scrollbar-color: var(--border) transparent;
 }
 
 ::selection {
