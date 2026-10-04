@@ -1,48 +1,37 @@
-import GithubSlugger from 'github-slugger';
+import type { Element, Root } from 'hast';
+import { toString } from 'hast-util-to-string';
+import rehypeSlug from 'rehype-slug';
+import remarkGfm from 'remark-gfm';
+import remarkParse from 'remark-parse';
+import remarkRehype from 'remark-rehype';
+import { unified } from 'unified';
+import { visit } from 'unist-util-visit';
 
 export interface TocItem {
   depth: 2 | 3;
   text: string;
-  /** Mesmo id que o rehype-slug põe no título renderizado (âncora #id) */
+  /** Mesmo id que o título renderizado recebe (âncora #id) */
   id: string;
 }
 
-const FENCE = /^(```|~~~)/;
-const ATX_HEADING = /^(#{1,6})\s+(.+?)\s*#*\s*$/;
+// O mesmo pipeline que o react-markdown monta em MarkdownContent (remark-parse + remark-gfm +
+// remark-rehype com as opções dele + rehype-slug). Em vez de reimplementar o parser com regex
+// (frágil e sujeito a ReDoS com entrada maliciosa), lemos os títulos já com os ids finais:
+// eles batem com o HTML por construção, inclusive em fences, títulos setext e repetidos.
+const processor = unified()
+  .use(remarkParse)
+  .use(remarkGfm)
+  .use(remarkRehype, { allowDangerousHtml: true })
+  .use(rehypeSlug);
 
-/**
- * Sumário da página a partir dos títulos ## e ### do Markdown (ignorando blocos de código).
- * Todo título consome um slug, na ordem, como o rehype-slug faz: títulos repetidos recebem
- * -1, -2... e os ids batem com os do HTML.
- */
+/** Sumário da página: títulos ## e ### do Markdown, na ordem, com os ids das âncoras. */
 export function extractToc(markdown: string): TocItem[] {
-  const slugger = new GithubSlugger();
+  const tree = processor.runSync(processor.parse(markdown)) as Root;
   const items: TocItem[] = [];
-  let inFence = false;
-
-  for (const line of markdown.split('\n')) {
-    if (FENCE.test(line.trim())) {
-      inFence = !inFence;
-      continue;
+  visit(tree, 'element', (node: Element) => {
+    if ((node.tagName === 'h2' || node.tagName === 'h3') && typeof node.properties.id === 'string') {
+      items.push({ depth: node.tagName === 'h2' ? 2 : 3, text: toString(node), id: node.properties.id });
     }
-    const match = inFence ? null : ATX_HEADING.exec(line);
-    if (!match) {
-      continue;
-    }
-    const depth = match[1].length;
-    const text = plainText(match[2]);
-    const id = slugger.slug(text);
-    if (depth === 2 || depth === 3) {
-      items.push({ depth, text, id });
-    }
-  }
+  });
   return items;
-}
-
-// Texto visível do título: [link](url) vira "link"; marcação de ênfase e código some
-function plainText(inline: string): string {
-  return inline
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/[*_`~]/g, '')
-    .trim();
 }
