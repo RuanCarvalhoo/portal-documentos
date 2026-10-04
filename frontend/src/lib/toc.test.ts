@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { extractToc } from './toc.ts';
 
-test('lists level 2 and 3 headings with rehype-slug compatible ids', () => {
+const ids = (markdown: string) => extractToc(markdown).map((item) => item.id);
+
+test('lists level 2 and 3 headings with their anchor ids', () => {
   const markdown = [
     '# Título da página',
     '## Visão geral',
@@ -19,15 +21,27 @@ test('lists level 2 and 3 headings with rehype-slug compatible ids', () => {
   ]);
 });
 
-test('ignores lines that look like headings inside code blocks', () => {
-  const markdown = ['```bash', '## não é título', '```', '## Depois do código'].join('\n');
-
-  assert.deepEqual(
-    extractToc(markdown).map((item) => item.text),
-    ['Depois do código'],
-  );
+test('keeps underscores, symbols and inline code text like the rendered anchors', () => {
+  assert.deepEqual(ids('## NEXT_PUBLIC_API_URL\n## Linguagem C#\n## Use `snake_case`'), [
+    'next_public_api_url',
+    'linguagem-c',
+    'use-snake_case',
+  ]);
 });
 
-test('uses the visible text of links in headings', () => {
-  assert.equal(extractToc('## Veja o [guia](https://example.com)')[0].text, 'Veja o guia');
+test('ignores headings inside any kind of fenced code block', () => {
+  const markdown = ['````md', '```', '## dentro', '```', '````', '~~~', '## também dentro', '~~~', '## Fora'].join('\n');
+
+  assert.deepEqual(ids(markdown), ['fora']);
+});
+
+test('finds setext headings too', () => {
+  assert.deepEqual(ids('Seção\n-------\n\n## Outra'), ['seção', 'outra']);
+});
+
+test('stays fast on adversarial input', () => {
+  const started = performance.now();
+  extractToc(`## a${' '.repeat(40_000)}x\n${'['.repeat(10_000)}`);
+
+  assert.ok(performance.now() - started < 1_000, 'extractToc demorou demais');
 });
