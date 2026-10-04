@@ -56,7 +56,7 @@ describe('SearchService', () => {
           title: 'Guia de Markdown',
           spaceId: 's1',
           spaceName: 'Guias',
-          snippet: 'Use **markdown** para formatar.',
+          snippet: 'Use markdown para formatar.',
           updatedAt,
         },
       ],
