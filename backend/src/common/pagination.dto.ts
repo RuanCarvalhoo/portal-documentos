@@ -42,3 +42,7 @@ export interface Paginated<T> {
 export function toSkipTake({ page, limit }: PaginationQueryDto): { skip: number; take: number } {
   return { skip: (page - 1) * limit, take: limit };
 }
+
+export function toPage<T>(data: T[], total: number, { page, limit }: PaginationQueryDto): Paginated<T> {
+  return { data, meta: { total, page, limit } };
+}

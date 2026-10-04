@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Paginated, PaginationQueryDto, toSkipTake } from '../common/pagination.dto';
+import { Paginated, PaginationQueryDto, toPage, toSkipTake } from '../common/pagination.dto';
 import { orNotFound } from '../common/prisma-errors';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSpaceDto } from './dto/create-space.dto';
@@ -30,7 +30,7 @@ export class SpacesService {
       }),
       this.prisma.space.count(),
     ]);
-    return { data, meta: { total, page: query.page, limit: query.limit } };
+    return toPage(data, total, query);
   }
 
   async findOne(id: string): Promise<SpaceDto> {
