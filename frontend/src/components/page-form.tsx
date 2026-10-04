@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, useDeferredValue, useState } from 'react';
+import { type FormEvent, memo, useDeferredValue, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { ApiError, apiFetch, errorMessages } from '@/lib/api';
 import type { TreeOption } from '@/lib/tree';
 import type { Page } from '@/lib/types';
@@ -16,6 +17,11 @@ type PageField = 'title' | 'content';
 // Mesmos limites da API (CreatePageDto)
 const MAX_TITLE = 200;
 const MAX_CONTENT = 50_000;
+// Memoizado: com useDeferredValue, o preview só re-renderiza quando o texto adiado muda e em
+// prioridade baixa (sem memo ele refaria o parse do Markdown a cada tecla, em prioridade alta)
+const Preview = memo(MarkdownContent);
+// Tamanho em code points, como a API conta (length do JS conta unidades UTF-16)
+const lengthOf = (text: string) => Array.from(text).length;
 // Recuo visual das opções do seletor (espaços não separáveis: <option> não aceita CSS de margem)
 const INDENT = String.fromCharCode(160).repeat(3);
 
@@ -29,6 +35,13 @@ interface PageFormProps {
 }
 
 export function PageForm({ spaceId, parentOptions, page, defaultParentId }: PageFormProps) {
+  const currentParentId = page?.parentId ?? null;
+  // Se a navegação não carregou (ou está desatualizada), o pai atual pode não estar na lista:
+  // sem esta opção o seletor cairia em "raiz" e salvar moveria a página sem a pessoa pedir
+  const options =
+    currentParentId && !parentOptions.some((option) => option.id === currentParentId)
+      ? [{ id: currentParentId, title: 'Página pai atual', depth: 0 }, ...parentOptions]
+      : parentOptions;
   const { token } = useAuth();
   const router = useRouter();
   const [content, setContent] = useState(page?.content ?? '');
@@ -51,17 +64,21 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId }: Page
 
     const found: FieldErrors<PageField> = {
       ...(!title && { title: 'Informe o título da página' }),
-      ...(title.length > MAX_TITLE && { title: `O título deve ter no máximo ${MAX_TITLE} caracteres` }),
-      ...(content.length > MAX_CONTENT && {
+      ...(lengthOf(title) > MAX_TITLE && { title: `O título deve ter no máximo ${MAX_TITLE} caracteres` }),
+      ...(lengthOf(content) > MAX_CONTENT && {
         content: `O conteúdo deve ter no máximo ${MAX_CONTENT.toLocaleString('pt-BR')} caracteres`,
       }),
     };
     setErrors(found);
     setApiErrors([]);
-    const firstInvalid = Object.keys(found)[0];
+    const firstInvalid = (['title', 'content'] as const).find((field) => found[field]);
     if (firstInvalid) {
-      setTab('write');
-      (formElement.elements.namedItem(firstInvalid) as HTMLElement | null)?.focus();
+      // flushSync: o textarea precisa estar visível (aba Escrever no mobile) antes do foco
+      flushSync(() => setTab('write'));
+      const field = formElement.elements.namedItem(firstInvalid);
+      if (field instanceof HTMLElement) {
+        field.focus();
+      }
       return;
     }
 
@@ -71,7 +88,13 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId }: Page
         ? await apiFetch<Page>(`/pages/${page.id}`, {
             method: 'PATCH',
             // version: se outra pessoa salvou antes, a API responde 409 em vez de sobrescrever
-            body: { title, content, parentId, version: page.version },
+            // parentId só vai se mudou: editar o texto nunca move a página por acidente
+            body: {
+              title,
+              content,
+              version: page.version,
+              ...(parentId !== currentParentId && { parentId }),
+            },
             token,
           })
         : await apiFetch<Page>(`/spaces/${spaceId}/pages`, {
@@ -116,7 +139,7 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId }: Page
           className="mt-1.5 block h-10 w-full max-w-md rounded-md border border-border bg-surface px-3 text-sm outline-none focus:border-foreground/40 focus:ring-2 focus:ring-accent-fg/25"
         >
           <option value="">Nenhuma (raiz do espaço)</option>
-          {parentOptions.map((option) => (
+          {options.map((option) => (
             <option key={option.id} value={option.id}>
               {INDENT.repeat(option.depth)}
               {option.title}
@@ -131,15 +154,14 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId }: Page
             Conteúdo <span className="font-normal text-muted">(Markdown)</span>
           </label>
           {/* Abas só no mobile; em telas largas editor e preview ficam lado a lado */}
-          <div role="tablist" aria-label="Modo do editor" className="flex gap-1 text-sm lg:hidden">
+          <div aria-label="Modo do editor" role="group" className="flex gap-1 text-sm lg:hidden">
             {(['write', 'preview'] as const).map((mode) => (
               <button
                 key={mode}
                 type="button"
-                role="tab"
-                aria-selected={tab === mode}
+                aria-pressed={tab === mode}
                 onClick={() => setTab(mode)}
-                className="rounded-md px-2.5 py-1 text-muted aria-selected:bg-hover aria-selected:text-foreground"
+                className="rounded-md px-2.5 py-1 text-muted aria-pressed:bg-hover aria-pressed:text-foreground"
               >
                 {mode === 'write' ? 'Escrever' : 'Visualizar'}
               </button>
@@ -168,7 +190,7 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId }: Page
             className={`h-[28rem] overflow-y-auto rounded-md border border-border bg-surface px-5 py-4 ${tab === 'preview' ? '' : 'max-lg:hidden'}`}
           >
             {previewContent.trim() ? (
-              <MarkdownContent content={previewContent} />
+              <Preview content={previewContent} anchors={false} />
             ) : (
               <p className="text-sm text-muted">A pré-visualização aparece aqui.</p>
             )}
