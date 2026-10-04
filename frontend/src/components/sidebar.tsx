@@ -109,6 +109,7 @@ export function Sidebar({ navigation }: SidebarProps) {
 }
 
 interface PageTreeProps {
+  id?: string;
   nodes: TreeNode[];
   level: number;
   isOpen: (id: string) => boolean;
@@ -116,9 +117,9 @@ interface PageTreeProps {
   onToggle: (id: string) => void;
 }
 
-function PageTree({ nodes, level, isOpen, activeId, onToggle }: PageTreeProps) {
+function PageTree({ id, nodes, level, isOpen, activeId, onToggle }: PageTreeProps) {
   return (
-    <ul className="mt-1 space-y-px">
+    <ul id={id} className="mt-1 space-y-px">
       {nodes.map((node) => {
         const hasChildren = node.children.length > 0;
         const open = isOpen(node.id);
@@ -134,7 +135,8 @@ function PageTree({ nodes, level, isOpen, activeId, onToggle }: PageTreeProps) {
                   type="button"
                   onClick={() => onToggle(node.id)}
                   aria-expanded={open}
-                  aria-label={`${open ? 'Recolher' : 'Expandir'} ${node.title}`}
+                  aria-controls={`subpaginas-${node.id}`}
+                  aria-label={`Subpáginas de ${node.title}`}
                   className="grid size-5 shrink-0 place-items-center rounded text-muted hover:text-foreground"
                 >
                   <ChevronRightIcon width={14} height={14} className={`transition-transform ${open ? 'rotate-90' : ''}`} />
@@ -151,7 +153,7 @@ function PageTree({ nodes, level, isOpen, activeId, onToggle }: PageTreeProps) {
               </Link>
             </div>
             {hasChildren && open && (
-              <PageTree nodes={node.children} level={level + 1} isOpen={isOpen} activeId={activeId} onToggle={onToggle} />
+              <PageTree id={`subpaginas-${node.id}`} nodes={node.children} level={level + 1} isOpen={isOpen} activeId={activeId} onToggle={onToggle} />
             )}
           </li>
         );

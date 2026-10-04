@@ -8,7 +8,8 @@
   --background: #fbfbfa;
   --surface: #ffffff;
   --foreground: #2f3437;
-  --muted: #787774;
+  /* #6b6a67 sobre o fundo: contraste ≥ 4.5:1 (WCAG AA) */
+  --muted: #6b6a67;
   --border: #eaeaea;
   --hover: #f1f1ef;
   --accent-bg: #e1f3fe;
@@ -52,6 +53,11 @@
   --font-sans: var(--font-geist-sans), "Helvetica Neue", sans-serif;
   --font-serif: var(--font-newsreader), Georgia, serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+html {
+  /* Âncoras e foco não ficam escondidos sob o header fixo */
+  scroll-padding-top: 4.5rem;
 }
 
 body {
