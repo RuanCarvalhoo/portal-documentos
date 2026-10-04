@@ -21,3 +21,21 @@ export function findAncestorIds(nodes: readonly TreeNode[], targetId: string): s
 export function countPages(nodes: readonly TreeNode[]): number {
   return nodes.reduce((total, node) => total + 1 + countPages(node.children), 0);
 }
+
+export interface TreeOption {
+  id: string;
+  title: string;
+  depth: number;
+}
+
+/**
+ * Árvore em lista plana (com profundidade) para o seletor de página pai. `excludeId` remove a
+ * página e toda a subárvore dela: ninguém pode escolher a si mesmo ou uma subpágina como pai.
+ */
+export function flattenTree(nodes: readonly TreeNode[], excludeId?: string, depth = 0): TreeOption[] {
+  return nodes.flatMap((node) =>
+    node.id === excludeId
+      ? []
+      : [{ id: node.id, title: node.title, depth }, ...flattenTree(node.children, excludeId, depth + 1)],
+  );
+}
