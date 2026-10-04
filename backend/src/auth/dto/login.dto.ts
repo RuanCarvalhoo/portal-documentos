@@ -1,6 +1,6 @@
 import { Transform } from 'class-transformer';
 import { IsByteLength, IsEmail, IsNotEmpty, IsString } from 'class-validator';
-import { normalizeEmail } from './transforms';
+import { normalizeEmail } from '../../common/transforms';
 
 export class LoginDto {
   /** @example demo@example.com */
