@@ -40,3 +40,15 @@ test('flattens the tree with depths, dropping an excluded subtree', () => {
     ['a', 'd'],
   );
 });
+
+test('excluding a root, a leaf or an unknown id', () => {
+  assert.deepEqual(
+    flattenTree(tree, 'a').map((option) => option.id),
+    ['d'],
+  );
+  assert.deepEqual(
+    flattenTree(tree, 'c').map((option) => option.id),
+    ['a', 'b', 'd'],
+  );
+  assert.equal(flattenTree(tree, 'x').length, 4);
+});
