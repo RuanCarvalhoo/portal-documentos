@@ -1,11 +1,32 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { apiFetch } from '@/lib/api';
+import { ApiError, apiFetch } from '@/lib/api';
 import type { AuthResponse, AuthUser } from '@/lib/types';
 
 // Trade-off documentado (ADR 004): token em localStorage, mitigado por Markdown sem HTML cru
 const TOKEN_KEY = 'portal-docs:token';
+
+// Armazenamento bloqueado (modo privado, política do navegador) não pode derrubar a aplicação
+function readToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeToken(token: string | null): void {
+  try {
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+    }
+  } catch {
+    // A sessão vale só enquanto a aba estiver aberta
+  }
+}
 
 interface AuthState {
   user: AuthUser | null;
@@ -25,27 +46,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
   const saveSession = useCallback(({ accessToken, user: profile }: AuthResponse) => {
-    localStorage.setItem(TOKEN_KEY, accessToken);
+    writeToken(accessToken);
     setToken(accessToken);
     setUser(profile);
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
+    writeToken(null);
     setToken(null);
     setUser(null);
   }, []);
 
   useEffect(() => {
-    const saved = localStorage.getItem(TOKEN_KEY);
+    const saved = readToken();
+    // Login/logout durante a validação mudam o token salvo: aí o resultado antigo é descartado
+    const stillCurrent = () => readToken() === saved;
     // Token salvo pode ter expirado: confirma com a API antes de considerar logado
     const restore = saved
       ? apiFetch<AuthUser>('/auth/me', { token: saved }).then(
           (profile) => {
-            setToken(saved);
-            setUser(profile);
+            if (stillCurrent()) {
+              setToken(saved);
+              setUser(profile);
+            }
           },
-          () => localStorage.removeItem(TOKEN_KEY),
+          (error: unknown) => {
+            // Só descarta a sessão se a API recusou o token; erro de rede não desloga ninguém
+            if (error instanceof ApiError && error.status === 401 && stillCurrent()) {
+              writeToken(null);
+            }
+          },
         )
       : Promise.resolve();
     void restore.finally(() => setReady(true));
