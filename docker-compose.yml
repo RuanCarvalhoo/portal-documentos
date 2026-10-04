@@ -6,16 +6,20 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-portal-documentos}
     ports:
-      # host:container — 5433 no host para não colidir com um Postgres local na 5432
-      - "5433:5432"
+      # host:container — 5433 no host para não colidir com um Postgres local na 5432;
+      # só em 127.0.0.1 para não expor a senha de desenvolvimento na rede
+      - "127.0.0.1:5433:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      # $$ adia a expansão para o shell do container, que já tem essas variáveis
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      # $$ adia a expansão para o shell do container, que já tem essas variáveis.
+      # -h 127.0.0.1 força TCP: o servidor temporário do init só ouve no socket unix,
+      # então sem isso o healthcheck pode passar antes do servidor real subir.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 10s
 
 volumes:
   postgres-data:
