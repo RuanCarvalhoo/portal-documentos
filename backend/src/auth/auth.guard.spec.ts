@@ -46,6 +46,28 @@ describe('AuthGuard', () => {
     );
   });
 
+  it('rejects a token signed with another algorithm, even with the right secret', async () => {
+    const hs512 = jwt.sign({ sub: 'u1' }, { algorithm: 'HS512' });
+
+    await expect(guard.canActivate(contextWith(`Bearer ${hs512}`).context)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it('rejects a token whose sub is not a user id', async () => {
+    const numericSub = jwt.sign({ sub: 123 });
+
+    await expect(
+      guard.canActivate(contextWith(`Bearer ${numericSub}`).context),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('accepts the scheme in any case', async () => {
+    const { context } = contextWith(`bearer ${jwt.sign({ sub: 'u1' })}`);
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+  });
+
   it('attaches the user id from a valid token', async () => {
     const { context, request } = contextWith(`Bearer ${jwt.sign({ sub: 'u1' })}`);
 

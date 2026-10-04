@@ -16,22 +16,22 @@ export class AuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const [scheme, token] = request.headers.authorization?.split(' ') ?? [];
-    if (scheme !== 'Bearer' || !token) {
+    // O esquema é case-insensitive (RFC 7235): 'bearer' também vale
+    if (scheme?.toLowerCase() !== 'bearer' || !token) {
       throw new UnauthorizedException('Token de acesso ausente');
     }
 
+    let payload: { sub?: unknown };
     try {
       // Algoritmo fixo: impede tokens forjados com outro "alg" no header
-      const payload = await this.jwt.verifyAsync<{ sub?: unknown }>(token, {
-        algorithms: ['HS256'],
-      });
-      if (typeof payload.sub !== 'string') {
-        throw new Error('Token sem sub');
-      }
-      request.user = { id: payload.sub };
-      return true;
+      payload = await this.jwt.verifyAsync(token, { algorithms: ['HS256'] });
     } catch {
       throw new UnauthorizedException('Token inválido ou expirado');
     }
+    if (typeof payload.sub !== 'string') {
+      throw new UnauthorizedException('Token inválido ou expirado');
+    }
+    request.user = { id: payload.sub };
+    return true;
   }
 }
