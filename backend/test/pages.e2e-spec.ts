@@ -275,16 +275,32 @@ describe('Pages (e2e)', () => {
         .send({ content: 'Segundo texto', version: page.version })
         .expect(200)
     ).body;
-    // Mover sem editar o texto não gera versão
+    // Mover sem editar o texto não gera versão nem muda a autoria do texto
+    const moved = (
+      await http()
+        .patch(`/pages/${page.id}`)
+        .set(auth)
+        .send({ parentId: other.id, version: edited.version })
+        .expect(200)
+    ).body;
+    expect(moved.updatedBy.id).toBe(edited.updatedBy.id);
+    expect(moved.updatedAt).toBe(edited.updatedAt);
+    // A próxima edição guarda o texto de quem o escreveu (não de quem só moveu)
     await http()
       .patch(`/pages/${page.id}`)
       .set(auth)
-      .send({ parentId: other.id, version: edited.version })
+      .send({ content: 'Terceiro texto', version: moved.version })
       .expect(200);
 
     const list = await http().get(`/pages/${page.id}/versions`).expect(200);
-    expect(list.body.meta).toMatchObject({ total: 1, page: 1 });
+    expect(list.body.meta).toMatchObject({ total: 2, page: 1 });
     expect(list.body.data).toEqual([
+      {
+        version: moved.version,
+        title: 'E2E Versionada',
+        editedBy: { id: edited.updatedBy.id, name: edited.updatedBy.name },
+        editedAt: edited.updatedAt,
+      },
       {
         version: 1,
         title: 'E2E Versionada',
@@ -296,9 +312,13 @@ describe('Pages (e2e)', () => {
 
     const first = await http().get(`/pages/${page.id}/versions/1`).expect(200);
     expect(first.body).toMatchObject({ pageId: page.id, version: 1, content: 'Primeiro texto' });
+    const second = await http().get(`/pages/${page.id}/versions/${moved.version}`).expect(200);
+    expect(second.body.content).toBe('Segundo texto');
 
     await http().get(`/pages/${page.id}/versions/2`).expect(404);
     await http().get(`/pages/${page.id}/versions/abc`).expect(400);
+    // Fora do int4: 404 (nenhuma versão existe), não um erro do banco
+    await http().get(`/pages/${page.id}/versions/99999999999`).expect(404);
     await http().get(`/pages/${MISSING_ID}/versions`).expect(404);
 
     await http().delete(`/pages/${page.id}`).set(auth).expect(204);
