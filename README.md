@@ -51,8 +51,7 @@ Todas têm **padrões de desenvolvimento** no `docker-compose.yml`: nada precisa
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `postgres` / `postgres` / `portal-documentos` | Banco (montam o `DATABASE_URL` da API; evite `@ : / # ?` na senha) |
 | `JWT_SECRET` | segredo de desenvolvimento | Assinatura dos tokens (mínimo 32 caracteres, validado no boot) |
 | `INTERNAL_API_SECRET` | segredo de desenvolvimento | Opcional (se definido, mínimo 32 caracteres). Compartilhado entre frontend e API para repassar o IP do visitante ao rate limit ([detalhes](docs/seguranca.md#rate-limit)) |
-| `CORS_ORIGIN` | `http://localhost:3000` | Única origem autorizada a chamar a API |
-| `NEXT_PUBLIC_API_URL` | `http://localhost:3001` | URL da API vista pelo navegador (embutida no build do frontend) |
+| `CORS_ORIGIN` | `http://localhost:3000` | Origem liberada para clientes que chamem a API direto (o portal não depende dela: o navegador usa o proxy `/api`) |
 
 ---
 
@@ -89,16 +88,14 @@ Todas têm **padrões de desenvolvimento** no `docker-compose.yml`: nada precisa
 ## Arquitetura
 
 ```
-Navegador ──────────────► frontend :3000 (Next.js)
-   │                         │  Server Components buscam dados em
-   │                         └─► http://backend:3001   (rede interna do Compose)
-   │
-   └── formulários / login ─► http://localhost:3001     (URL pública da API)
-                                  backend :3001 (NestJS)
-                                     └─► db :5432 (PostgreSQL)
+Navegador ──► frontend :3000 (Next.js)
+                 ├─ Server Components ──────────┐
+                 └─ /api/* (proxy do navegador) ┴─► http://backend:3001 (rede interna do Compose)
+                                                       backend :3001 (NestJS)
+                                                          └─► db :5432 (PostgreSQL)
 ```
 
-Dentro do Docker, os containers se encontram pelo **nome do serviço**; o navegador só enxerga as portas publicadas no host. Por isso o frontend usa **duas URLs** da API: a interna para renderizar no servidor e a pública para as chamadas do navegador.
+O navegador só fala com o frontend: formulários e login chamam `/api/...` na própria origem, e o servidor do Next repassa para a API pela rede interna ([ADR 008](docs/adr/008-proxy-da-api-no-frontend.md)). Por isso não há CORS nem URL da API embutida no build, e o portal funciona por `localhost`, `127.0.0.1` ou qualquer host que alcance a porta 3000.
 
 ```
 backend/
@@ -126,6 +123,7 @@ docs/           ADRs, banco de dados, segurança
 | Cache | **Não cachear por enquanto** | A navegação já é barata por desenho; cache só com medição. [ADR 006](docs/adr/006-cache-da-navegacao.md) |
 | Histórico | **Trigger no Postgres** | Guarda o texto anterior atomicamente, em qualquer escrita. [ADR 007](docs/adr/007-historico-de-versoes.md) |
 | Frontend | **Next.js App Router** | Leitura renderizada no servidor; formulários como Client Components. |
+| Navegador → API | **Proxy `/api` no Next** (Route Handler) | Mesma origem: sem CORS, sem URL da API no build, sem depender da porta 3001 no navegador. [ADR 008](docs/adr/008-proxy-da-api-no-frontend.md) |
 | Markdown | **react-markdown** + remark-gfm + rehype-slug + rehype-highlight | Sem HTML cru (seguro por padrão); o mesmo componente na leitura, no preview e no histórico. |
 | Estilo | **Tailwind CSS 4** + typography | Tokens de cor com tema claro/escuro, sem biblioteca de componentes. |
 
