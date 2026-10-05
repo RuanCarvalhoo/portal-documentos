@@ -11,6 +11,15 @@ async function bootstrap(): Promise<void> {
   // SIGTERM (docker stop) dispara onModuleDestroy → fecha o pool do Prisma
   app.enableShutdownHooks();
   const config = app.get<ConfigService<Env, true>>(ConfigService);
+  // Os padrões do docker-compose servem só para a avaliação local: avisa se a API subir com eles
+  const devSecrets = (['JWT_SECRET', 'INTERNAL_API_SECRET'] as const).filter((name) =>
+    config.get(name, { infer: true })?.startsWith('dev-only-'),
+  );
+  if (devSecrets.length > 0) {
+    new Logger('Bootstrap').warn(
+      `${devSecrets.join(' e ')} com o valor padrão de desenvolvimento: defina segredos próprios fora do ambiente local`,
+    );
+  }
   await app.listen(config.get('PORT', { infer: true }));
 }
 
