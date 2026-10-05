@@ -16,8 +16,8 @@ FROM node:24-alpine3.22
 RUN apk add --no-cache openssl
 WORKDIR /app
 ENV NODE_ENV=production
-# ponytail: node_modules inteiro (com devDependencies) porque o `migrate deploy` roda no start
-# e precisa do CLI do prisma; imagem menor = estágio/job de migração separado
+# node_modules inteiro (com devDependencies) porque o `migrate deploy` roda no start e precisa
+# do CLI do prisma. Limite conhecido: a imagem fica maior; um job de migração separado resolveria.
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/package.json /app/prisma7.config.ts ./
