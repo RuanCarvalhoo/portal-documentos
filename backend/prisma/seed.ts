@@ -6,14 +6,15 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { hash } from 'bcryptjs';
-import { Prisma, PrismaClient } from '../src/generated/prisma/client';
+import { Prisma, PrismaClient, Role } from '../src/generated/prisma/client';
 
 // Credenciais de DEMONSTRAÇÃO, documentadas no README para o avaliador — não são segredo.
-const DEMO_USER = {
-  name: 'Usuário Demo',
-  email: 'demo@example.com',
-  password: 'demo1234',
-};
+// Uma conta por perfil (ADR 012); a primeira é a autora do conteúdo de exemplo.
+const DEMO_USERS = [
+  { name: 'Admin Demo', email: 'demo@example.com', password: 'demo1234', role: Role.ADMIN },
+  { name: 'Editora Demo', email: 'editor@example.com', password: 'editor1234', role: Role.EDITOR },
+  { name: 'Leitor Demo', email: 'leitor@example.com', password: 'leitor1234', role: Role.READER },
+];
 const BCRYPT_ROUNDS = 10;
 const FENCE = '```';
 
@@ -283,16 +284,18 @@ async function main(): Promise<void> {
         // mesmo tempo (a segunda espera e então vê os espaços já criados).
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(7001)`;
 
-        const user =
-          (await tx.user.findUnique({ where: { email: DEMO_USER.email }, select: { id: true } })) ??
-          (await tx.user.create({
-            data: {
-              name: DEMO_USER.name,
-              email: DEMO_USER.email,
-              passwordHash: await hash(DEMO_USER.password, BCRYPT_ROUNDS),
-            },
-            select: { id: true },
-          }));
+        // Sempre, mesmo com conteúdo: num banco antigo a conta demo existe sem o perfil certo.
+        // A senha só é definida na criação (quem a trocou não a perde a cada boot).
+        const [user] = await Promise.all(
+          DEMO_USERS.map(async ({ password, ...profile }) =>
+            tx.user.upsert({
+              where: { email: profile.email },
+              update: { name: profile.name, role: profile.role },
+              create: { ...profile, passwordHash: await hash(password, BCRYPT_ROUNDS) },
+              select: { id: true },
+            }),
+          ),
+        );
 
         if ((await tx.space.count()) > 0) {
           return null;
