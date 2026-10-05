@@ -73,7 +73,7 @@ describe('Spaces (e2e)', () => {
       .expect(400);
 
     expect(res.body.message).toEqual(
-      expect.arrayContaining(['property extra should not exist', 'Informe o nome do espaço']),
+      expect.arrayContaining(['Campo não permitido: extra', 'Informe o nome do espaço']),
     );
   });
 

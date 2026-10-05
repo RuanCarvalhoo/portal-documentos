@@ -41,16 +41,45 @@ describe('toHttpError', () => {
 });
 
 describe('toHttpError edge cases', () => {
-  it('honours 4xx errors raised by the body parser', () => {
-    const tooLarge = Object.assign(new Error('request entity too large'), {
+  const bodyParserError = (status: number, type: string) =>
+    Object.assign(new Error('english message'), { status, expose: true, type });
+
+  it('honours 4xx errors raised by the body parser, with a Portuguese message', () => {
+    expect(toHttpError(bodyParserError(413, 'entity.too.large'))).toEqual({
       status: 413,
-      expose: true,
+      message: 'O corpo da requisição é grande demais',
     });
-    expect(toHttpError(tooLarge)).toEqual({ status: 413, message: 'request entity too large' });
+  });
+
+  it('keeps the status of other body parser errors behind a generic message', () => {
+    expect(toHttpError(bodyParserError(415, 'charset.unsupported'))).toEqual({
+      status: 415,
+      message: 'Requisição inválida',
+    });
   });
 
   it('does not trust a status on errors not marked as exposable', () => {
     expect(toHttpError(Object.assign(new Error('boom'), { status: 400 })).status).toBe(500);
+  });
+
+  describe('English messages produced by the framework', () => {
+    it('translates the unknown-field message of the validation pipe', () => {
+      expect(
+        toHttpError(new BadRequestException(['property role should not exist', 'Informe o nome'])).message,
+      ).toEqual(['Campo não permitido: role', 'Informe o nome']);
+    });
+
+    it('translates a malformed percent-encoding in a URL parameter', () => {
+      expect(toHttpError(new BadRequestException("Failed to decode param '%ZZ'")).message).toBe(
+        'Parâmetro inválido na URL',
+      );
+    });
+
+    it('translates an invalid JSON body', () => {
+      expect(
+        toHttpError(new BadRequestException(`Unexpected token 'x', "x" is not valid JSON`)).message,
+      ).toBe('O corpo da requisição não é um JSON válido');
+    });
   });
 
   it('falls back to the exception message when the body has no usable message', () => {

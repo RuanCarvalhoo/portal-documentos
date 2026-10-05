@@ -29,4 +29,8 @@ export function configureApp(app: INestApplication): void {
       .build(),
   );
   SwaggerModule.setup('docs', app, document);
+
+  // A raiz da API não é um recurso: quem abre http://localhost:3001 cai na documentação
+  const http = app.getHttpAdapter();
+  http.get('/', (_request: unknown, response: unknown) => http.redirect(response, 302, '/docs'));
 }

@@ -55,7 +55,27 @@ describe('App foundation (e2e)', () => {
       .send(JSON.stringify({ content: 'x'.repeat(200_000) }))
       .expect(413);
 
-    expect(res.body).toMatchObject({ statusCode: 413, error: 'Payload Too Large' });
+    expect(res.body).toMatchObject({
+      statusCode: 413,
+      error: 'Payload Too Large',
+      message: 'O corpo da requisição é grande demais',
+    });
+  });
+
+  it('answers a malformed URL and an invalid JSON body in Portuguese', async () => {
+    const badParam = await request(app.getHttpServer()).get('/pages/%ZZ').expect(400);
+    expect(badParam.body.message).toBe('Parâmetro inválido na URL');
+
+    const badJson = await request(app.getHttpServer())
+      .post('/spaces')
+      .set('Content-Type', 'application/json')
+      .send('{"name":')
+      .expect(400);
+    expect(badJson.body.message).toBe('O corpo da requisição não é um JSON válido');
+  });
+
+  it('sends the API root to the documentation', () => {
+    return request(app.getHttpServer()).get('/').expect(302).expect('Location', '/docs');
   });
 
   it('publishes the OpenAPI document with bearer auth', async () => {
