@@ -9,6 +9,7 @@ import { loggerParams } from './common/logging';
 import { PagesModule } from './pages/pages.module';
 import { SearchModule } from './search/search.module';
 import { SpacesModule } from './spaces/spaces.module';
+import { TagsModule } from './tags/tags.module';
 import { type Env, validateEnv } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -46,6 +47,7 @@ import { UsersModule } from './users/users.module';
     SpacesModule,
     PagesModule,
     SearchModule,
+    TagsModule,
     UsersModule,
   ],
 })

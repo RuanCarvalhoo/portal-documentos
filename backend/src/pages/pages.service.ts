@@ -9,6 +9,7 @@ import { Paginated, PaginationQueryDto, toPage, toSkipTake } from '../common/pag
 import { orNotFound } from '../common/prisma-errors';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { sameTags, TAG_NAMES } from '../tags/tags.util';
 import { CreatePageDto } from './dto/create-page.dto';
 import { NavigationSpaceDto, PageDto } from './dto/page.dto';
 import { PageVersionDto, PageVersionSummaryDto } from './dto/page-version.dto';
@@ -28,9 +29,16 @@ const PAGE_FIELDS = {
   updatedAt: true,
   createdBy: AUTHOR,
   updatedBy: AUTHOR,
+  tags: TAG_NAMES,
 } as const;
 const VERSION_SUMMARY_FIELDS = { version: true, title: true, editedBy: AUTHOR, editedAt: true } as const;
 type Tx = Prisma.TransactionClient;
+type PageRow = Prisma.PageGetPayload<{ select: typeof PAGE_FIELDS }>;
+
+/** Linha do banco → resposta da API: as tags viram uma lista de nomes. */
+export function toPageDto({ tags, ...page }: PageRow): PageDto {
+  return { ...page, tags: tags.map(({ tag }) => tag.name) };
+}
 
 const NOT_FOUND = 'Página não encontrada';
 const INVALID_PARENT = 'A página pai deve existir e estar no mesmo espaço';
@@ -67,12 +75,16 @@ export class PagesService {
           position: await this.nextPosition(tx, spaceId, parentId),
           createdById: userId,
           updatedById: userId,
+          tags: { create: (await this.tagIds(tx, dto.tags ?? [])).map((tagId) => ({ tagId })) },
         },
         select: PAGE_FIELDS,
       });
     });
-    this.logger.log({ event: 'page.created', pageId: page.id, spaceId }, 'Página criada');
-    return page;
+    this.logger.log(
+      { event: 'page.created', pageId: page.id, spaceId, tags: dto.tags ?? [] },
+      'Página criada',
+    );
+    return toPageDto(page);
   }
 
   async findOne(id: string): Promise<PageDto> {
@@ -80,26 +92,41 @@ export class PagesService {
     if (!page) {
       throw new NotFoundException(NOT_FOUND);
     }
-    return page;
+    return toPageDto(page);
   }
 
   async update(id: string, dto: UpdatePageDto, userId: string): Promise<PageDto> {
-    const { version, ...changes } = dto;
-    if (Object.values(changes).every((value) => value === undefined)) {
+    const { version, tags, ...changes } = dto;
+    if (Object.values(changes).every((value) => value === undefined) && tags === undefined) {
       throw new BadRequestException('Informe ao menos um campo para atualizar');
     }
     const current = await this.prisma.page.findUnique({
       where: { id },
-      select: { spaceId: true, parentId: true, title: true, content: true, updatedAt: true },
+      select: {
+        spaceId: true,
+        parentId: true,
+        title: true,
+        content: true,
+        updatedAt: true,
+        tags: TAG_NAMES,
+      },
     });
     if (!current) {
       throw new NotFoundException(NOT_FOUND);
     }
     // Salvar sem mudar nada não gera versão nova: senão quem edita a página ao mesmo tempo
     // levaria um 409 por uma "alteração" que não existe
-    const changed = (Object.keys(changes) as (keyof typeof changes)[]).some(
-      (field) => changes[field] !== undefined && changes[field] !== current[field],
-    );
+    const tagsChanged =
+      tags !== undefined &&
+      !sameTags(
+        tags,
+        current.tags.map(({ tag }) => tag.name),
+      );
+    const changed =
+      tagsChanged ||
+      (Object.keys(changes) as (keyof typeof changes)[]).some(
+        (field) => changes[field] !== undefined && changes[field] !== current[field],
+      );
     // "Editada por/em" é sobre o texto: mover sem editar mantém quem escreveu (e o histórico, que
     // copia esses campos, atribui cada versão a quem de fato a escreveu)
     const textChanged = (['title', 'content'] as const).some(
@@ -120,12 +147,18 @@ export class PagesService {
           }
           position = await this.nextPosition(tx, current.spaceId, changes.parentId ?? null);
         }
+        // Tags são metadado, como a posição: trocar só as tags não gera versão no histórico (o
+        // trigger olha título e conteúdo) nem muda o "editada por", mas incrementa a versão
+        const tagWrites = tagsChanged && {
+          tags: { deleteMany: {}, create: (await this.tagIds(tx, tags)).map((tagId) => ({ tagId })) },
+        };
         // Concorrência otimista num único UPDATE ... WHERE id = ? AND version = ? RETURNING:
         // só grava se ninguém salvou depois da versão que o cliente leu
         return tx.page.update({
           where: { id, version },
           data: {
             ...changes,
+            ...tagWrites,
             position,
             ...(textChanged ? { updatedById: userId } : { updatedAt: current.updatedAt }),
             version: { increment: 1 },
@@ -134,10 +167,10 @@ export class PagesService {
         });
       });
       this.logger.log(
-        { event: 'page.updated', pageId: id, version: page.version, textChanged, moved: moving },
+        { event: 'page.updated', pageId: id, version: page.version, textChanged, moved: moving, tagsChanged },
         'Página atualizada',
       );
-      return page;
+      return toPageDto(page);
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
         // Nenhuma linha casou: ou a versão ficou velha (409) ou a página sumiu no meio (404)
@@ -150,6 +183,20 @@ export class PagesService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Ids das tags pelo nome, criando as que ainda não existem. O createMany vira
+   * INSERT ... ON CONFLICT DO NOTHING: duas páginas ganhando a mesma tag nova ao mesmo tempo
+   * não colidem no unique (o connectOrCreate do Prisma não garante isso).
+   */
+  private async tagIds(tx: Tx, names: string[]): Promise<string[]> {
+    if (names.length === 0) {
+      return [];
+    }
+    await tx.tag.createMany({ data: names.map((name) => ({ name })), skipDuplicates: true });
+    const found = await tx.tag.findMany({ where: { name: { in: names } }, select: { id: true } });
+    return found.map(({ id }) => id);
   }
 
   /** Versões anteriores da página, da mais recente para a mais antiga (sem o conteúdo). */

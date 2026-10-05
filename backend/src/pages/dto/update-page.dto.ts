@@ -1,5 +1,5 @@
 import { IsInt, Max, Min, ValidateIf } from 'class-validator';
-import { PageContentRules, PageTitleRules, ParentIdRules } from './create-page.dto';
+import { PageContentRules, PageTitleRules, ParentIdRules, TagsRules } from './create-page.dto';
 
 // version é int4 no Postgres: acima disso a query falharia com erro 500
 export const MAX_VERSION = 2_147_483_647;
@@ -17,6 +17,10 @@ export class UpdatePageDto {
   /** Novo pai no mesmo espaço; null move para a raiz; omitir mantém o atual */
   @ParentIdRules()
   parentId?: string | null;
+
+  /** Lista completa de tags (substitui as atuais); omitir mantém as atuais */
+  @TagsRules()
+  tags?: string[];
 
   /**
    * Versão que o cliente leu. Se outra pessoa salvou antes, a API responde 409
