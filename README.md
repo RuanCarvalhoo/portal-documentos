@@ -15,31 +15,6 @@ O conteúdo do portal é a **documentação deste projeto**: arquitetura, decis�
 
 ---
 
-## Como testar
-
-1. **Suba o projeto:** `docker compose up --build` e espere os três serviços ficarem *healthy* (`docker compose ps` em outro terminal).
-   - Se já rodou uma versão anterior, comece com `docker compose down -v`: o seed só cria o conteúdo num banco sem espaços.
-2. **Entre:** abra http://localhost:3000 e entre como Admin com **`demo@example.com` / `demo1234`**.
-3. **Leia a arquitetura:** em **Arquitetura → Visão geral**, veja o diagrama (clique para ampliar), o sumário, as tags e o "criada/editada por".
-   - Clique em **Histórico** → **versão 1**, a versão anterior com o diagrama em texto, e em **Restaurar esta versão**.
-4. **Veja os pontos de falha:** **Operação → Pontos de falha e escalabilidade** mostra o que acontece quando cada peça cai, os gargalos e como o sistema cresce.
-5. **Navegue por tags:** clique em **#postgresql** em qualquer página, ou abra **Tags** na barra lateral.
-6. **Busque** **markdown** no header.
-7. **Edite uma página:** crie uma subpágina e, no editor:
-   - acrescente tags;
-   - **cole um print** ou use **Inserir imagem**;
-   - veja a pré-visualização ao lado;
-   - salve, depois exclua (há confirmação).
-8. **Teste um conflito:** abra o editor da mesma página em duas abas, altere o texto nas duas e salve uma depois da outra. A segunda recebe o aviso, com "ver a versão atual" e "salvar por cima".
-9. **Teste os perfis:**
-   - Entre como **`leitor@example.com` / `leitor1234`**: os botões de edição somem, e a API responde 403.
-   - Volte como Admin, abra **Usuários** no header e promova o Leitor a Editor.
-   - Tente rebaixar a única conta Admin: o portal impede.
-10. **Veja os logs:** `docker compose logs backend` mostra uma linha JSON por requisição, com o `requestId` (o mesmo que volta no corpo de qualquer erro).
-11. **Abra o Swagger** em http://localhost:3001: `POST /auth/login` com o usuário demo, copie o `accessToken` e cole em **Authorize**.
-
----
-
 ## Como rodar
 
 Pré-requisito: **Docker** (Docker Desktop no Windows/macOS) em execução, com as portas **3000**, **3001** e **5433** livres. O compose usa *build contexts* nomeados (Docker Compose v2.17 ou mais novo).
@@ -98,6 +73,31 @@ Todas têm **padrões de desenvolvimento** no `docker-compose.yml`: nada precisa
   - O navegador não chama a porta 3001 diretamente ([ADR 008](docs/adr/008-proxy-da-api-no-frontend.md)), então CORS e o host usado para abrir o portal não interferem.
 - **Conteúdo antigo** (o exemplo fictício de versões anteriores): rode `docker compose down -v` e suba de novo. O seed só importa a documentação num banco vazio.
 - **Porta ocupada:** libere 3000, 3001 e 5433, ou mude o lado do host em `ports` no `docker-compose.yml`.
+
+---
+
+## Como testar
+
+1. **Suba o projeto:** `docker compose up --build` e espere os três serviços ficarem *healthy* (`docker compose ps` em outro terminal).
+   - Se já rodou uma versão anterior, comece com `docker compose down -v`: o seed só cria o conteúdo num banco sem espaços.
+2. **Entre:** abra http://localhost:3000 e entre como Admin com **`demo@example.com` / `demo1234`**.
+3. **Leia a arquitetura:** em **Arquitetura → Visão geral**, veja o diagrama (clique para ampliar), o sumário, as tags e o "criada/editada por".
+   - Clique em **Histórico** → **versão 1**, a versão anterior com o diagrama em texto, e em **Restaurar esta versão**.
+4. **Veja os pontos de falha:** **Operação → Pontos de falha e escalabilidade** mostra o que acontece quando cada peça cai, os gargalos e como o sistema cresce.
+5. **Navegue por tags:** clique em **#postgresql** em qualquer página, ou abra **Tags** na barra lateral.
+6. **Busque** **markdown** no header.
+7. **Edite uma página:** crie uma subpágina e, no editor:
+   - acrescente tags;
+   - **cole um print** ou use **Inserir imagem**;
+   - veja a pré-visualização ao lado;
+   - salve, depois exclua (há confirmação).
+8. **Teste um conflito:** abra o editor da mesma página em duas abas, altere o texto nas duas e salve uma depois da outra. A segunda recebe o aviso, com "ver a versão atual" e "salvar por cima".
+9. **Teste os perfis:**
+   - Entre como **`leitor@example.com` / `leitor1234`**: os botões de edição somem, e a API responde 403.
+   - Volte como Admin, abra **Usuários** no header e promova o Leitor a Editor.
+   - Tente rebaixar a única conta Admin: o portal impede.
+10. **Veja os logs:** `docker compose logs backend` mostra uma linha JSON por requisição, com o `requestId` (o mesmo que volta no corpo de qualquer erro).
+11. **Abra o Swagger** em http://localhost:3001: `POST /auth/login` com o usuário demo, copie o `accessToken` e cole em **Authorize**.
 
 ---
 
