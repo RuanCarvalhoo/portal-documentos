@@ -4,9 +4,8 @@ import { PlusIcon } from '@/components/icons';
 import { Pager } from '@/components/pager';
 import { AuthOnly } from '@/components/require-auth';
 import { secondaryButton } from '@/components/ui';
-import { apiFetch } from '@/lib/api';
 import { pageParam, totalPages } from '@/lib/pagination';
-import { getNavigation } from '@/lib/server-api';
+import { getNavigation, serverFetch } from '@/lib/server-api';
 import { countPages } from '@/lib/tree';
 import type { Paginated, Space } from '@/lib/types';
 
@@ -15,7 +14,7 @@ const PAGE_SIZE = 20;
 export default async function HomePage({ searchParams }: PageProps<'/'>) {
   const page = pageParam((await searchParams).page);
   const [spaces, navigation] = await Promise.all([
-    apiFetch<Paginated<Space>>(`/spaces?page=${page}&limit=${PAGE_SIZE}`).catch(() => null),
+    serverFetch<Paginated<Space>>(`/spaces?page=${page}&limit=${PAGE_SIZE}`).catch(() => null),
     getNavigation(),
   ]);
   const pages = spaces ? totalPages(spaces.meta.total, PAGE_SIZE) : 1;
