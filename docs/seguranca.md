@@ -50,7 +50,7 @@ Resumo no [README](../README.md#segurança). Aqui ficam os detalhes, as premissa
 
 ## Trade-offs aceitos
 
-- **Segredos padrão no compose** (`JWT_SECRET`, `INTERNAL_API_SECRET`, senha do banco): existem para o "um comando" funcionar e são **públicos**. Por isso as portas ficam em `127.0.0.1` e a API avisa no log ao subir com eles. Em qualquer outro ambiente, defina segredos próprios.
+- **Segredos padrão no compose** (`JWT_SECRET`, `INTERNAL_API_SECRET`, senha do banco): existem para o "um comando" funcionar e são **públicos**. Por isso as portas ficam em `127.0.0.1`, e a API avisa no log quando sobe com o `JWT_SECRET` ou o `INTERNAL_API_SECRET` padrão. Em qualquer outro ambiente, defina segredos próprios.
 - **Token em `localStorage`:** simples para uma SPA que fala com uma API separada, mas legível por JavaScript em caso de XSS. Mitigação: Markdown sem HTML cru. Evolução: refresh token em cookie `httpOnly` ([ADR 004](adr/004-autenticacao-jwt.md)).
 - **Sem CSP no frontend:** o App Router usa scripts inline e exigiria nonce por requisição.
 - **Registro aberto e sem perfis:** qualquer conta edita e exclui qualquer conteúdo (premissa do desafio; o rate limit das escritas freia abuso em massa). O histórico de versões guarda o texto anterior de cada edição.
@@ -59,5 +59,5 @@ Resumo no [README](../README.md#segurança). Aqui ficam os detalhes, as premissa
 ## `npm audit`
 
 - **Frontend:** 0 vulnerabilidades nas dependências de produção.
-- **Backend:** 4 *high* (`mysql2`, `deepmerge-ts`, `@prisma/config`) vindas do **CLI do Prisma**, que o `@prisma/client` 7 declara como dependência. O CLI só executa `migrate deploy` contra o Postgres no start; a aplicação usa o adapter `pg` e nunca carrega o `mysql2`. A correção sugerida pelo npm é rebaixar para o Prisma 6 → risco aceito.
-- Os demais alertas (`tmp`, `undici`, `braces`) estão só em ferramentas de desenvolvimento.
+- **Backend:** 4 *high* — o pacote `prisma` (o CLI, que fica na imagem para o `migrate deploy` do start) e dependências dele (`@prisma/config`, `deepmerge-ts`, `mysql2`). O CLI só aplica migrations no Postgres; a aplicação usa o `@prisma/client` com o adapter `pg` e nunca carrega o `mysql2`. A correção sugerida pelo npm é rebaixar para o Prisma 6 → risco aceito.
+- **Frontend, ferramentas de desenvolvimento:** 5 *high* na cadeia do ESLint (`eslint-config-next`, `@next/eslint-plugin-next`, `fast-glob`, `micromatch`, `braces`); não entram na imagem nem no bundle.
