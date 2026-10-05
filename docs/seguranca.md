@@ -47,6 +47,14 @@ Resumo no [README](../README.md#segurança). Aqui ficam os detalhes, as premissa
 - Árvore com no máximo **10 níveis** (criar e mover): uma cadeia de milhares de páginas aninhadas estouraria a pilha ao serializar `/navigation` e derrubaria a barra lateral do portal.
 - Criar e mover travam a linha do espaço (`SELECT … FOR UPDATE`): mudanças de estrutura simultâneas entram em fila ([ADR 005](adr/005-concorrencia-otimista.md)).
 
+## Upload de imagens
+
+- Só **Editor** ou **Admin** envia; o rate limit é de 30 envios por minuto. O corpo multipart só é lido depois dos guards: sem login e perfil, nada é bufferizado.
+- Teto de **5 MB** por arquivo e um arquivo por envio (multer em memória). Acima do teto, a resposta é 413.
+- O tipo vem da **assinatura dos bytes** (PNG, JPEG, GIF, WebP), nunca do nome ou do `Content-Type` do cliente; o resto recebe 415. **SVG é recusado**: é XML que pode carregar script, e rodaria na origem do portal, onde está o token.
+- O nome do arquivo é limpo: sem caminho, sem caracteres de controle nem aspas, até 200 caracteres. Ele vai para o `Content-Disposition` com `filename*` (UTF-8).
+- As imagens são servidas com `Content-Type` do tipo detectado, `nosniff`, a CSP do helmet e `Content-Disposition: inline`, na mesma origem do portal (proxy `/api`).
+
 ## Frontend
 
 - Markdown renderizado **sem HTML cru** (sem `rehype-raw`); o `urlTransform` padrão descarta links `javascript:` e `data:`; links externos (inclusive `//site.com`) abrem com `noopener noreferrer`.
