@@ -2,7 +2,7 @@ import { IsInt, Max, Min, ValidateIf } from 'class-validator';
 import { PageContentRules, PageTitleRules, ParentIdRules } from './create-page.dto';
 
 // version é int4 no Postgres: acima disso a query falharia com erro 500
-const MAX_VERSION = 2_147_483_647;
+export const MAX_VERSION = 2_147_483_647;
 
 export class UpdatePageDto {
   /** Novo título (omitir mantém o atual) */

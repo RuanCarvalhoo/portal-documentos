@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -6,8 +7,10 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -20,14 +23,19 @@ import {
 } from '@nestjs/swagger';
 import { AuthGuard, type AuthenticatedUser } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { PaginationQueryDto } from '../common/pagination.dto';
 import { ParseIdPipe } from '../common/parse-id.pipe';
 import { WriteThrottle } from '../common/throttle';
 import { CreatePageDto } from './dto/create-page.dto';
 import { NavigationSpaceDto, PageDto } from './dto/page.dto';
+import { PageVersionDto, PaginatedPageVersionsDto } from './dto/page-version.dto';
 import { UpdatePageDto } from './dto/update-page.dto';
 import { PagesService } from './pages.service';
 
 const UNAUTHORIZED = { description: 'Token ausente, inválido ou expirado' };
+const ParseVersionPipe = new ParseIntPipe({
+  exceptionFactory: () => new BadRequestException('Versão inválida'),
+});
 
 @ApiTags('pages')
 @Controller()
@@ -62,6 +70,28 @@ export class PagesController {
   @ApiNotFoundResponse({ description: 'Página não encontrada' })
   findOne(@Param('id', ParseIdPipe) id: string): Promise<PageDto> {
     return this.pages.findOne(id);
+  }
+
+  /** Versões anteriores da página, da mais recente para a mais antiga (público, paginado) */
+  @Get('pages/:id/versions')
+  @ApiBadRequestResponse({ description: 'Identificador ou paginação inválidos' })
+  @ApiNotFoundResponse({ description: 'Página não encontrada' })
+  versions(
+    @Param('id', ParseIdPipe) id: string,
+    @Query() query: PaginationQueryDto,
+  ): Promise<PaginatedPageVersionsDto> {
+    return this.pages.versions(id, query);
+  }
+
+  /** Uma versão anterior da página, com o conteúdo completo (público) */
+  @Get('pages/:id/versions/:version')
+  @ApiBadRequestResponse({ description: 'Identificador ou número de versão inválido' })
+  @ApiNotFoundResponse({ description: 'Versão não encontrada' })
+  version(
+    @Param('id', ParseIdPipe) id: string,
+    @Param('version', ParseVersionPipe) version: number,
+  ): Promise<PageVersionDto> {
+    return this.pages.version(id, version);
   }
 
   /** Edita título, conteúdo e/ou página pai, informando a versão lida */
