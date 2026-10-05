@@ -22,7 +22,7 @@ WHERE id = $1 AND version = $2
 RETURNING ...
 ```
 
-(no Prisma, `update({ where: { id, version } })`). Se nenhuma linha casar, a API distingue: a página ainda existe → outra pessoa salvou antes → **409 Conflict** ("Esta página foi alterada por outra pessoa"); a página sumiu → **404**. O frontend mantém o texto digitado e orienta a recarregar.
+(no Prisma, `update({ where: { id, version } })`). Se nenhuma linha casar, a API distingue: a página ainda existe → outra pessoa salvou antes → **409 Conflict** ("Esta página foi alterada por outra pessoa"); a página sumiu → **404**. O frontend mantém o texto digitado e oferece ver a versão atual (nova aba) ou salvar por cima dela, por escolha explícita.
 
 ## Consequências
 
@@ -30,8 +30,8 @@ RETURNING ...
 - A checagem da versão e a gravação acontecem no mesmo `UPDATE`, então não há janela de corrida para a **mesma página** (testado: dois saves simultâneos da mesma versão → um 200, um 409).
 - A versão protege uma linha, não a **estrutura**: duas movimentações opostas simultâneas (A para dentro de B e B para dentro de A) passariam na checagem de ciclo e formariam um laço. Por isso criar e mover páginas rodam numa transação que trava a linha do espaço (`SELECT ... FOR UPDATE`): mudanças de estrutura no mesmo espaço entram em fila, o que também evita posições duplicadas entre irmãos.
 - O cliente precisa reenviar a versão (vem em toda leitura de página).
-- Não há merge automático: em conflito, a pessoa recarrega e reaplica a mudança.
+- Não há merge automático: em conflito, a pessoa compara com a versão atual e decide se salva por cima.
 
 ## Quando eu mudaria de ideia
 
-Com edição colaborativa em tempo real (várias pessoas no mesmo documento), versionamento por página não basta: usaria CRDT/OT (ex.: Yjs) com sincronização por WebSocket, e guardaria histórico de versões para permitir restaurar.
+Com edição colaborativa em tempo real (várias pessoas no mesmo documento), versionamento por página não basta: usaria CRDT/OT (ex.: Yjs) com sincronização por WebSocket, (o histórico de versões, que permite restaurar, já existe: [ADR 007](007-historico-de-versoes.md)).
