@@ -11,6 +11,7 @@ import type { Page, PageVersion } from '@/lib/types';
 import type { FieldErrors } from '@/lib/validation';
 import { useAuth } from './auth-provider';
 import { MarkdownContent } from './markdown';
+import { TagInput } from './tag-input';
 import { ErrorAlert } from './error-alert';
 import { Field, secondaryButton, SubmitButton } from './ui';
 import { useUnsavedChangesWarning } from './use-unsaved-changes';
@@ -52,6 +53,8 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId, restor
   const { token } = useAuth();
   const router = useRouter();
   const [content, setContent] = useState(restoring?.content ?? page?.content ?? '');
+  // Tags não entram no histórico: restaurar uma versão mantém as tags atuais
+  const [tags, setTags] = useState(page?.tags ?? []);
   // Preview com prioridade menor que a digitação: textos longos não travam o teclado
   const previewContent = useDeferredValue(content);
   const [tab, setTab] = useState<'write' | 'preview'>('write');
@@ -117,6 +120,7 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId, restor
             body: {
               title,
               content,
+              tags,
               version: versionRef.current,
               ...(parentId !== currentParentId && { parentId }),
             },
@@ -124,7 +128,7 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId, restor
           })
         : await apiFetch<Page>(`/spaces/${spaceId}/pages`, {
             method: 'POST',
-            body: { title, content, parentId },
+            body: { title, content, parentId, tags },
             token,
           });
       // Salvo: a partir daqui sair não descarta nada (a rota nova pode levar alguns segundos)
@@ -201,6 +205,15 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId, restor
         </p>
       )}
       <Field label="Título" name="title" defaultValue={restoring?.title ?? page?.title} maxLength={MAX_TITLE} error={errors.title} />
+
+      <TagInput
+        tags={tags}
+        onChange={(next) => {
+          // Remover um chip não dispara o onInput do formulário
+          setTags(next);
+          setDirty(true);
+        }}
+      />
 
       <div>
         <label htmlFor="parentId" className="block text-sm font-medium">

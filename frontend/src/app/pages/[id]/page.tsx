@@ -4,6 +4,7 @@ import { DeleteButton } from '@/components/delete-button';
 import { PlusIcon } from '@/components/icons';
 import { MarkdownContent } from '@/components/markdown';
 import { AuthOnly } from '@/components/require-auth';
+import { TagList } from '@/components/tag-list';
 import { TableOfContents } from '@/components/table-of-contents';
 import { primaryButton, secondaryButton } from '@/components/ui';
 import { formatDateTime } from '@/lib/format';
@@ -84,6 +85,7 @@ export default async function PageView({ params }: PageProps<'/pages/[id]'>) {
             Histórico
           </Link>
         </p>
+        <TagList tags={page.tags} className="mt-3" />
 
         {showToc && (
           <details className="mt-6 rounded-md border border-border px-4 py-3 xl:hidden">
