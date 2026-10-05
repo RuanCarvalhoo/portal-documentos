@@ -11,17 +11,11 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBadRequestResponse,
-  ApiBearerAuth,
-  ApiConflictResponse,
-  ApiNotFoundResponse,
-  ApiTags,
-  ApiUnauthorizedResponse,
-} from '@nestjs/swagger';
-import { AuthGuard, type AuthenticatedUser } from '../auth/auth.guard';
+import { ApiBadRequestResponse, ApiConflictResponse, ApiNotFoundResponse, ApiTags } from '@nestjs/swagger';
+import { Auth } from '../auth/auth.decorator';
+import { type AuthenticatedUser } from '../auth/auth.guard';
+import { Role } from '../auth/roles';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { PaginationQueryDto } from '../common/pagination.dto';
 import { ParseIdPipe } from '../common/parse-id.pipe';
@@ -32,7 +26,6 @@ import { PageVersionDto, PaginatedPageVersionsDto } from './dto/page-version.dto
 import { UpdatePageDto } from './dto/update-page.dto';
 import { PagesService } from './pages.service';
 
-const UNAUTHORIZED = { description: 'Token ausente, inválido ou expirado' };
 const ParseVersionPipe = new ParseIntPipe({
   exceptionFactory: () => new BadRequestException('Versão inválida'),
 });
@@ -48,14 +41,12 @@ export class PagesController {
     return this.pages.navigation();
   }
 
-  /** Cria uma página no espaço, na raiz ou sob uma página pai */
+  /** Cria uma página no espaço, na raiz ou sob uma página pai (Editor ou Admin) */
   @Post('spaces/:spaceId/pages')
-  @UseGuards(AuthGuard)
+  @Auth(Role.EDITOR)
   @WriteThrottle()
-  @ApiBearerAuth()
   @ApiBadRequestResponse({ description: 'Corpo inválido ou página pai de outro espaço' })
   @ApiNotFoundResponse({ description: 'Espaço não encontrado' })
-  @ApiUnauthorizedResponse(UNAUTHORIZED)
   create(
     @Param('spaceId', ParseIdPipe) spaceId: string,
     @Body() dto: CreatePageDto,
@@ -94,15 +85,13 @@ export class PagesController {
     return this.pages.version(id, version);
   }
 
-  /** Edita título, conteúdo e/ou página pai, informando a versão lida */
+  /** Edita título, conteúdo e/ou página pai, informando a versão lida (Editor ou Admin) */
   @Patch('pages/:id')
-  @UseGuards(AuthGuard)
+  @Auth(Role.EDITOR)
   @WriteThrottle()
-  @ApiBearerAuth()
   @ApiBadRequestResponse({ description: 'Corpo inválido, pai inválido ou ciclo na hierarquia' })
   @ApiNotFoundResponse({ description: 'Página não encontrada' })
   @ApiConflictResponse({ description: 'A página foi alterada por outra pessoa (versão desatualizada)' })
-  @ApiUnauthorizedResponse(UNAUTHORIZED)
   update(
     @Param('id', ParseIdPipe) id: string,
     @Body() dto: UpdatePageDto,
@@ -111,15 +100,13 @@ export class PagesController {
     return this.pages.update(id, dto, user.id);
   }
 
-  /** Exclui a página e todas as subpáginas */
+  /** Exclui a página e todas as subpáginas (Editor ou Admin) */
   @Delete('pages/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(AuthGuard)
+  @Auth(Role.EDITOR)
   @WriteThrottle()
-  @ApiBearerAuth()
   @ApiBadRequestResponse({ description: 'Identificador inválido' })
   @ApiNotFoundResponse({ description: 'Página não encontrada' })
-  @ApiUnauthorizedResponse(UNAUTHORIZED)
   remove(@Param('id', ParseIdPipe) id: string): Promise<void> {
     return this.pages.remove(id);
   }

@@ -4,7 +4,9 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
+import { Role } from '../src/auth/roles';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { registerAs } from './helpers';
 
 const MISSING_ID = '00000000-0000-7000-8000-000000000000';
 
@@ -19,12 +21,13 @@ describe('Pages (e2e)', () => {
   let childId: string;
 
   const http = () => request(app.getHttpServer());
-  const register = async (name: string) => {
-    const res = await http()
-      .post('/auth/register')
-      .send({ name, email: `e2e-pages-${name.length}-${Date.now()}@example.com`, password: 'senha-forte-1' });
-    return { Authorization: `Bearer ${res.body.accessToken}` };
-  };
+  const register = async (name: string) =>
+    (
+      await registerAs(app, prisma, Role.EDITOR, {
+        name,
+        email: `e2e-pages-${name.length}-${Date.now()}@example.com`,
+      })
+    ).auth;
   const versionOf = async (id: string): Promise<number> =>
     (await http().get(`/pages/${id}`).expect(200)).body.version;
 

@@ -4,7 +4,9 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
+import { Role } from '../src/auth/roles';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { registerAs } from './helpers';
 
 const MISSING_ID = '00000000-0000-7000-8000-000000000000';
 
@@ -21,11 +23,13 @@ describe('Spaces (e2e)', () => {
     await app.init();
     prisma = app.get(PrismaService);
 
-    const res = await request(app.getHttpServer())
-      .post('/auth/register')
-      .send({ name: 'Spaces E2E', email: `e2e-spaces-${Date.now()}@example.com`, password: 'senha-forte-1' });
-    auth = { Authorization: `Bearer ${res.body.accessToken}` };
-    userId = res.body.user.id;
+    // Admin: este teste também exclui espaços, o que Editor não pode
+    const admin = await registerAs(app, prisma, Role.ADMIN, {
+      name: 'Spaces E2E',
+      email: `e2e-spaces-${Date.now()}@example.com`,
+    });
+    auth = admin.auth;
+    userId = admin.user.id;
   });
 
   afterAll(async () => {

@@ -4,7 +4,9 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
+import { Role } from '../src/auth/roles';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { registerAs } from './helpers';
 
 // Palavra inventada: só as páginas criadas por este teste a contêm
 const WORD = 'zebrafuscado';
@@ -21,10 +23,10 @@ describe('Search (e2e)', () => {
     await app.init();
     prisma = app.get(PrismaService);
 
-    const user = await http()
-      .post('/auth/register')
-      .send({ name: 'Search E2E', email: `e2e-search-${Date.now()}@example.com`, password: 'senha-forte-1' });
-    const auth = { Authorization: `Bearer ${user.body.accessToken}` };
+    const { auth } = await registerAs(app, prisma, Role.EDITOR, {
+      name: 'Search E2E',
+      email: `e2e-search-${Date.now()}@example.com`,
+    });
     const spaceId = (await http().post('/spaces').set(auth).send({ name: 'E2E Busca' })).body.id;
     await http()
       .post(`/spaces/${spaceId}/pages`)

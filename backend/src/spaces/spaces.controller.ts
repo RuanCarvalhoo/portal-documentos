@@ -9,16 +9,10 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBadRequestResponse,
-  ApiBearerAuth,
-  ApiNotFoundResponse,
-  ApiTags,
-  ApiUnauthorizedResponse,
-} from '@nestjs/swagger';
-import { AuthGuard } from '../auth/auth.guard';
+import { ApiBadRequestResponse, ApiNotFoundResponse, ApiTags } from '@nestjs/swagger';
+import { Auth } from '../auth/auth.decorator';
+import { Role } from '../auth/roles';
 import { PaginationQueryDto } from '../common/pagination.dto';
 import { ParseIdPipe } from '../common/parse-id.pipe';
 import { WriteThrottle } from '../common/throttle';
@@ -47,38 +41,32 @@ export class SpacesController {
     return this.spaces.findOne(id);
   }
 
-  /** Cria um espaço */
+  /** Cria um espaço (Editor ou Admin) */
   @Post()
-  @UseGuards(AuthGuard)
+  @Auth(Role.EDITOR)
   @WriteThrottle()
-  @ApiBearerAuth()
   @ApiBadRequestResponse({ description: 'Corpo inválido' })
-  @ApiUnauthorizedResponse({ description: 'Token ausente, inválido ou expirado' })
   create(@Body() dto: CreateSpaceDto): Promise<SpaceDto> {
     return this.spaces.create(dto);
   }
 
-  /** Edita nome e/ou descrição de um espaço */
+  /** Edita nome e/ou descrição de um espaço (Editor ou Admin) */
   @Patch(':id')
-  @UseGuards(AuthGuard)
+  @Auth(Role.EDITOR)
   @WriteThrottle()
-  @ApiBearerAuth()
   @ApiBadRequestResponse({ description: 'Identificador ou corpo inválido' })
   @ApiNotFoundResponse({ description: 'Espaço não encontrado' })
-  @ApiUnauthorizedResponse({ description: 'Token ausente, inválido ou expirado' })
   update(@Param('id', ParseIdPipe) id: string, @Body() dto: UpdateSpaceDto): Promise<SpaceDto> {
     return this.spaces.update(id, dto);
   }
 
-  /** Exclui o espaço e todas as suas páginas */
+  /** Exclui o espaço e todas as suas páginas (só Admin: apaga uma árvore inteira) */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(AuthGuard)
+  @Auth(Role.ADMIN)
   @WriteThrottle()
-  @ApiBearerAuth()
   @ApiBadRequestResponse({ description: 'Identificador inválido' })
   @ApiNotFoundResponse({ description: 'Espaço não encontrado' })
-  @ApiUnauthorizedResponse({ description: 'Token ausente, inválido ou expirado' })
   remove(@Param('id', ParseIdPipe) id: string): Promise<void> {
     return this.spaces.remove(id);
   }
