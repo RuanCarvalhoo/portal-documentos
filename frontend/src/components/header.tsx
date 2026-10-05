@@ -31,7 +31,7 @@ export function Header({ menuOpen, onToggleMenu }: HeaderProps) {
         <button
           type="button"
           onClick={onToggleMenu}
-          aria-controls="sidebar"
+          aria-controls="portal-sidebar"
           aria-expanded={menuOpen}
           aria-label={menuOpen ? 'Fechar navegação' : 'Abrir navegação'}
           className="grid size-9 shrink-0 place-items-center rounded-md text-muted hover:bg-hover hover:text-foreground pointer-coarse:size-11 md:hidden"
@@ -59,13 +59,13 @@ export function Header({ menuOpen, onToggleMenu }: HeaderProps) {
           onSubmit={search}
           className="ml-auto hidden w-full max-w-xs sm:block"
         >
-          <label htmlFor="busca" className="sr-only">
+          <label htmlFor="portal-busca" className="sr-only">
             Buscar na documentação
           </label>
           <div className="flex h-8 items-center gap-2 rounded-md border border-border bg-surface px-2.5 text-muted focus-within:border-foreground/30 focus-within:ring-2 focus-within:ring-accent-fg/30">
             <SearchIcon className="shrink-0" />
             <input
-              id="busca"
+              id="portal-busca"
               name="q"
               type="search"
               placeholder="Buscar..."
