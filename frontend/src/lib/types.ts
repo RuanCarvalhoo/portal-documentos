@@ -55,6 +55,8 @@ export interface Page {
   updatedAt: string;
   createdBy: UserSummary;
   updatedBy: UserSummary;
+  /** Normalizadas e em ordem alfabética */
+  tags: string[];
 }
 
 /** Versão anterior de uma página (o histórico guarda o texto substituído a cada edição) */
@@ -82,4 +84,18 @@ export interface SearchResult {
   spaceName: string;
   snippet: string;
   updatedAt: string;
+}
+
+export interface TagSummary {
+  name: string;
+  pageCount: number;
+}
+
+export interface TaggedPage {
+  id: string;
+  title: string;
+  spaceId: string;
+  spaceName: string;
+  updatedAt: string;
+  tags: string[];
 }

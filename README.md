@@ -83,7 +83,8 @@ Todas têm **padrões de desenvolvimento** no `docker-compose.yml`: nada precisa
 | Testes no front-end ou e2e | **Parcial** — 34 testes do frontend (lógica pura) e 61 e2e da API; sem e2e de navegador |
 | Logs estruturados | **Entregue** — JSON (pino) com `requestId` ponta a ponta, log de acesso e eventos de negócio ([ADR 009](docs/adr/009-logs-estruturados.md)) |
 | Perfis de acesso | **Entregue** — Admin, Editor e Leitor; conta nova é Leitor; tela **Usuários** para o Admin ([ADR 012](docs/adr/012-perfis-de-acesso.md)) |
-| Upload de imagens, tags | Não entregues (imagens por URL) |
+| Tags nas páginas | **Entregue** — até 10 por página, normalizadas; chips na página, `/tags` e `/tags/:nome` ([ADR 011](docs/adr/011-tags.md)) |
+| Upload de imagens | Não entregue (imagens por URL) |
 
 ---
 

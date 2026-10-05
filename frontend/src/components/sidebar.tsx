@@ -105,6 +105,16 @@ export function Sidebar({ navigation }: SidebarProps) {
           )}
         </section>
       ))}
+      <Link
+        href="/tags"
+        aria-current={pathname.startsWith('/tags') ? 'page' : undefined}
+        className="mt-2 flex items-center gap-1.5 rounded-md px-2 py-1.5 text-muted transition-colors hover:bg-hover hover:text-foreground aria-[current=page]:text-foreground"
+      >
+        <span aria-hidden="true" className="w-4 text-center">
+          #
+        </span>{' '}
+        Tags
+      </Link>
       <AuthOnly role="EDITOR">
         <Link
           href="/spaces/new"
