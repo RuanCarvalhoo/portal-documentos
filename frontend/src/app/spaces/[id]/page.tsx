@@ -26,7 +26,7 @@ export default async function SpacePage({ params }: PageProps<'/spaces/[id]'>) {
         <h1 className="font-serif text-4xl tracking-tight sm:text-5xl">{space.name}</h1>
         {/* Altura reservada: as ações só aparecem depois de confirmar a sessão (sem "pulo") */}
         <div className="min-h-9">
-          <AuthOnly>
+          <AuthOnly role="EDITOR">
             <div className="flex flex-wrap items-start gap-2">
               <Link href={`/spaces/${space.id}/pages/new`} className={primaryButton}>
                 <PlusIcon /> Nova página
@@ -34,11 +34,14 @@ export default async function SpacePage({ params }: PageProps<'/spaces/[id]'>) {
               <Link href={`/spaces/${space.id}/edit`} className={secondaryButton}>
                 Editar
               </Link>
-              <DeleteButton
-                endpoint={`/spaces/${space.id}`}
-                confirmMessage={`Excluir o espaço "${space.name}" e todas as suas páginas? Esta ação não pode ser desfeita.`}
-                redirectTo="/"
-              />
+              {/* Excluir leva a árvore inteira de páginas: só Admin */}
+              <AuthOnly role="ADMIN">
+                <DeleteButton
+                  endpoint={`/spaces/${space.id}`}
+                  confirmMessage={`Excluir o espaço "${space.name}" e todas as suas páginas? Esta ação não pode ser desfeita.`}
+                  redirectTo="/"
+                />
+              </AuthOnly>
             </div>
           </AuthOnly>
         </div>

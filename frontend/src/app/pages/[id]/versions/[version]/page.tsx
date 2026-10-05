@@ -30,7 +30,7 @@ export default async function PageVersionView({ params }: PageProps<'/pages/[id]
           <Link href={`/pages/${id}`} className={secondaryButton}>
             Ver a versão atual
           </Link>
-          <AuthOnly>
+          <AuthOnly role="EDITOR">
             {/* Restaurar não sobrescreve nada direto: abre o editor com este texto, e salvar cria uma
                 versão nova (a atual vai para o histórico) */}
             <Link href={`/pages/${id}/edit?fromVersion=${version.version}`} className={primaryButton}>

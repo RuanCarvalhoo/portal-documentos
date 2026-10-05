@@ -105,7 +105,7 @@ export function Sidebar({ navigation }: SidebarProps) {
           )}
         </section>
       ))}
-      <AuthOnly>
+      <AuthOnly role="EDITOR">
         <Link
           href="/spaces/new"
           className="mt-2 flex items-center gap-1.5 rounded-md px-2 py-1.5 text-muted transition-colors hover:bg-hover hover:text-foreground"

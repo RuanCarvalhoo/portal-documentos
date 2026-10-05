@@ -17,6 +17,18 @@ Resumo no [README](../README.md#segurança). Aqui ficam os detalhes, as premissa
 - Login com 401 genérico e bcrypt executado mesmo para e-mail inexistente: nem a mensagem nem o tempo revelam contas no login. O **cadastro** responde 409 para e-mail já usado (é a mensagem útil para quem se cadastra); o rate limit do cadastro limita a enumeração.
 - JWT **HS256** com algoritmo fixo na verificação, `JWT_SECRET` obrigatório (mínimo 32 caracteres, validado no boot) e expiração de 8 h. Token em `localStorage` (ver trade-offs).
 
+## Perfis de acesso
+
+| Ação | Mínimo |
+|---|---|
+| Ler (espaços, páginas, histórico, busca, tags, imagens) | público |
+| Criar e editar espaços; criar, editar e excluir páginas; enviar imagens | Editor |
+| Excluir espaços; listar contas e trocar perfis | Admin |
+
+- O perfil vem do banco a cada requisição autenticada, não do JWT: rebaixar ou remover uma conta vale na hora. Abaixo do mínimo, a API responde 403.
+- O cadastro recusa o campo `role` (400). Só um Admin muda perfis, e o último Admin não pode ser rebaixado (409, com as linhas dos Admins travadas durante a checagem).
+- Toda troca de perfil gera o evento `user.role_changed` no log (quem, de quê, para quê, por quem).
+
 ## Rate limit
 
 | Rota | Limite por cliente |
@@ -54,7 +66,7 @@ Resumo no [README](../README.md#segurança). Aqui ficam os detalhes, as premissa
 - **Segredos padrão no compose** (`JWT_SECRET`, `INTERNAL_API_SECRET`, senha do banco): existem para o "um comando" funcionar e são **públicos**. Por isso as portas ficam em `127.0.0.1`, e a API avisa no log quando sobe com o `JWT_SECRET` ou o `INTERNAL_API_SECRET` padrão. Em qualquer outro ambiente, defina segredos próprios.
 - **Token em `localStorage`:** simples para uma SPA que fala com uma API separada, mas legível por JavaScript em caso de XSS. Mitigação: Markdown sem HTML cru. Evolução: refresh token em cookie `httpOnly` ([ADR 004](adr/004-autenticacao-jwt.md)).
 - **Sem CSP no frontend:** o App Router usa scripts inline e exigiria nonce por requisição.
-- **Registro aberto e sem perfis:** qualquer conta edita e exclui qualquer conteúdo (premissa do desafio; o rate limit das escritas freia abuso em massa). O histórico de versões guarda o texto anterior de cada edição.
+- **Registro aberto, mas a conta nova é Leitor:** ler é público, escrever exige Editor e excluir espaços exige Admin ([ADR 012](adr/012-perfis-de-acesso.md)). Os perfis são globais, não por espaço. O histórico de versões guarda o texto anterior de cada edição feita por um Editor.
 - **Swagger público**, inclusive com `NODE_ENV=production` — é parte da avaliação.
 
 ## `npm audit`

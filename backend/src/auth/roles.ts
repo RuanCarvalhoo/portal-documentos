@@ -6,7 +6,7 @@ export { Role };
 const RANK: Record<Role, number> = { READER: 0, EDITOR: 1, ADMIN: 2 };
 
 export const ROLE_LABELS: Record<Role, string> = {
-  ADMIN: 'Administrador',
+  ADMIN: 'Admin',
   EDITOR: 'Editor',
   READER: 'Leitor',
 };

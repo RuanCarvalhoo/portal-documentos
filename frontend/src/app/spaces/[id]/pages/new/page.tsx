@@ -19,7 +19,7 @@ export default async function NewPagePage({ params, searchParams }: PageProps<'/
     <div>
       <h1 className="font-serif text-4xl tracking-tight">Nova página</h1>
       <p className="mt-2 mb-8 text-muted">Em {space.name}</p>
-      <RequireAuth>
+      <RequireAuth role="EDITOR">
         <PageForm spaceId={space.id} parentOptions={parentOptions} defaultParentId={defaultParentId} />
       </RequireAuth>
     </div>

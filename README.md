@@ -82,7 +82,8 @@ Todas têm **padrões de desenvolvimento** no `docker-compose.yml`: nada precisa
 | Paginação nas listagens | **Entregue** — espaços, busca e histórico (`{ data, meta }`) |
 | Testes no front-end ou e2e | **Parcial** — 34 testes do frontend (lógica pura) e 61 e2e da API; sem e2e de navegador |
 | Logs estruturados | **Entregue** — JSON (pino) com `requestId` ponta a ponta, log de acesso e eventos de negócio ([ADR 009](docs/adr/009-logs-estruturados.md)) |
-| Upload de imagens, tags, perfis de acesso | Não entregues (imagens por URL; qualquer usuário logado edita) |
+| Perfis de acesso | **Entregue** — Admin, Editor e Leitor; conta nova é Leitor; tela **Usuários** para o Admin ([ADR 012](docs/adr/012-perfis-de-acesso.md)) |
+| Upload de imagens, tags | Não entregues (imagens por URL) |
 
 ---
 
@@ -213,7 +214,7 @@ Detalhes, premissas de implantação, trade-offs e a triagem do `npm audit`: [do
 
 ## Premissas
 
-- Leitura é pública (inclusive o histórico); criar, editar e excluir exigem login. Não há perfis: qualquer usuário logado edita qualquer conteúdo.
+- Leitura é pública (inclusive o histórico). Criar e editar exigem o perfil Editor; excluir espaços e gerenciar perfis, Admin. Conta nova entra como Leitor ([ADR 012](docs/adr/012-perfis-de-acesso.md)).
 - Excluir um espaço exclui suas páginas; excluir uma página exclui as subpáginas e o histórico delas (sempre com confirmação).
 - A página pai precisa estar no mesmo espaço; a árvore tem no máximo 10 níveis.
 - Mover uma página não é uma edição: não gera versão nem muda o "editada por".
