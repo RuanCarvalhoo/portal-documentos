@@ -21,15 +21,19 @@ const components: Components = {
       <a href={href}>{children}</a>
     ),
   // Imagens do Markdown têm URLs arbitrárias: next/image exigiria cadastrar cada domínio
-  img: ({ src, alt }) => (
+  img: ({ src, alt }) => {
+    const url = typeof src === 'string' ? src : undefined;
     // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={typeof src === 'string' ? src : undefined}
-      alt={alt ?? ''}
-      loading="lazy"
-      referrerPolicy="no-referrer"
-    />
-  ),
+    const image = <img src={url} alt={alt ?? ''} loading="lazy" referrerPolicy="no-referrer" />;
+    // Imagens enviadas ao portal (diagramas, prints) abrem em tamanho real numa nova aba
+    return url?.startsWith('/api/uploads/') ? (
+      <a href={url} target="_blank" rel="noopener" title="Abrir a imagem em tamanho real">
+        {image}
+      </a>
+    ) : (
+      image
+    );
+  },
   // Tabelas largas rolam na horizontal em vez de estourar a coluna de texto
   table: ({ children }) => (
     <div className="overflow-x-auto">
