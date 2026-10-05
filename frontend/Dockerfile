@@ -15,7 +15,7 @@ FROM node:24-alpine3.22
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
 # static não entra no standalone; o node precisa escrever em .next/cache.
-# (Sem pasta public: o portal não tem assets estáticos; o favicon fica em src/app.)
+# (Sem pasta public: o portal não tem assets estáticos; o ícone fica em src/app/icon.svg.)
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
 USER node
