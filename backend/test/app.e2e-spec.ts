@@ -26,7 +26,12 @@ describe('App foundation (e2e)', () => {
   it('answers unknown routes with the standard error envelope', async () => {
     const res = await request(app.getHttpServer()).get('/nao-existe').expect(404);
 
-    expect(res.body).toMatchObject({ statusCode: 404, error: 'Not Found', path: '/nao-existe' });
+    expect(res.body).toMatchObject({
+      statusCode: 404,
+      error: 'Not Found',
+      message: 'Rota não encontrada: GET /nao-existe',
+      path: '/nao-existe',
+    });
     expect(Number.isNaN(Date.parse(res.body.timestamp))).toBe(false);
   });
 

@@ -80,6 +80,19 @@ describe('toHttpError edge cases', () => {
         toHttpError(new BadRequestException(`Unexpected token 'x', "x" is not valid JSON`)).message,
       ).toBe('O corpo da requisição não é um JSON válido');
     });
+
+    it('translates the unknown-route message and keeps the route', () => {
+      expect(toHttpError(new NotFoundException('Cannot GET /x.JSON'))).toEqual({
+        status: 404,
+        message: 'Rota não encontrada: GET /x.JSON',
+      });
+    });
+
+    it('only applies each translation to the status the framework uses it with', () => {
+      expect(toHttpError(new NotFoundException('Cannot parse JSON here')).message).toBe(
+        'Cannot parse JSON here',
+      );
+    });
   });
 
   it('falls back to the exception message when the body has no usable message', () => {
