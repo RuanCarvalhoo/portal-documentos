@@ -17,6 +17,8 @@ export class PageDto {
   updatedAt: Date;
   createdBy: UserSummaryDto;
   updatedBy: UserSummaryDto;
+  /** Tags em ordem alfabética */
+  tags: string[];
 }
 
 export class PageTreeNodeDto {

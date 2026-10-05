@@ -23,6 +23,7 @@ describe('PagesService', () => {
       count: jest.fn(),
       delete: jest.fn(),
     },
+    tag: { createMany: jest.fn(), findMany: jest.fn() },
     $queryRaw: jest.fn(),
     $transaction: jest.fn(),
   };
@@ -61,7 +62,7 @@ describe('PagesService', () => {
       prisma.$queryRaw.mockResolvedValue([{ id: 's1' }]);
       prisma.page.findMany.mockResolvedValue(chain(MAX_TREE_DEPTH));
       prisma.page.aggregate.mockResolvedValue({ _max: { position: null } });
-      prisma.page.create.mockResolvedValue({ id: 'new' });
+      prisma.page.create.mockResolvedValue({ id: 'new', tags: [] });
 
       await expect(service.create('s1', { title: 'Funda demais', parentId: 'p10' }, USER)).rejects.toThrow(
         new BadRequestException('A hierarquia de páginas pode ter no máximo 10 níveis'),
@@ -73,7 +74,7 @@ describe('PagesService', () => {
     it('locks the space, records the author and appends after the siblings', async () => {
       prisma.$queryRaw.mockResolvedValue([{ id: 's1' }]);
       prisma.page.aggregate.mockResolvedValue({ _max: { position: 2 } });
-      prisma.page.create.mockResolvedValue({ id: 'new' });
+      prisma.page.create.mockResolvedValue({ id: 'new', tags: [] });
 
       await service.create('s1', { title: 'Nova', content: '# Oi' }, USER);
 
@@ -95,7 +96,7 @@ describe('PagesService', () => {
   });
 
   describe('update', () => {
-    const current = { spaceId: 's1', parentId: null };
+    const current = { spaceId: 's1', parentId: null, tags: [] };
 
     it('answers 404 when the page does not exist', async () => {
       prisma.page.findUnique.mockResolvedValue(null);
@@ -107,7 +108,7 @@ describe('PagesService', () => {
 
     it('saves only when the version matches, bumping it and recording the editor', async () => {
       prisma.page.findUnique.mockResolvedValue(current);
-      prisma.page.update.mockResolvedValue({ id: 'a' });
+      prisma.page.update.mockResolvedValue({ id: 'a', tags: [] });
 
       await service.update('a', { content: 'novo', version: 3 }, USER);
 
@@ -126,12 +127,66 @@ describe('PagesService', () => {
     });
 
     it('keeps the version when the update changes nothing', async () => {
-      const page = { ...current, title: 'Título', content: 'Texto', version: 4 };
+      const page = {
+        ...current,
+        title: 'Título',
+        content: 'Texto',
+        version: 4,
+        tags: [{ tag: { name: 'api' } }],
+      };
       prisma.page.findUnique.mockResolvedValue(page);
 
       await expect(
-        service.update('a', { title: 'Título', content: 'Texto', parentId: null, version: 2 }, USER),
-      ).resolves.toBe(page);
+        service.update(
+          'a',
+          { title: 'Título', content: 'Texto', parentId: null, tags: ['api'], version: 2 },
+          USER,
+        ),
+      ).resolves.toEqual({ ...page, tags: ['api'] });
+      expect(prisma.page.update).not.toHaveBeenCalled();
+    });
+
+    it('replaces the tags without touching the author nor the history', async () => {
+      const updatedAt = new Date('2026-01-01');
+      prisma.page.findUnique.mockResolvedValue({
+        ...current,
+        updatedAt,
+        tags: [{ tag: { name: 'antiga' } }],
+      });
+      prisma.tag.findMany.mockResolvedValue([{ id: 't1' }, { id: 't2' }]);
+      prisma.page.update.mockResolvedValue({
+        id: 'a',
+        tags: [{ tag: { name: 'api' } }, { tag: { name: 'busca' } }],
+      });
+
+      const page = await service.update('a', { tags: ['busca', 'api'], version: 2 }, USER);
+
+      expect(prisma.tag.createMany).toHaveBeenCalledWith({
+        data: [{ name: 'busca' }, { name: 'api' }],
+        skipDuplicates: true,
+      });
+      expect(prisma.page.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'a', version: 2 },
+          data: expect.objectContaining({
+            tags: { deleteMany: {}, create: [{ tagId: 't1' }, { tagId: 't2' }] },
+            updatedAt,
+            version: { increment: 1 },
+          }),
+        }),
+      );
+      expect(prisma.page.update.mock.calls[0][0].data).not.toHaveProperty('updatedById');
+      expect(page.tags).toEqual(['api', 'busca']);
+    });
+
+    it('treats the same tags in another order as no change', async () => {
+      prisma.page.findUnique.mockResolvedValue({
+        ...current,
+        tags: [{ tag: { name: 'a' } }, { tag: { name: 'b' } }],
+      });
+
+      await service.update('a', { tags: ['b', 'a'], version: 1 }, USER);
+
       expect(prisma.page.update).not.toHaveBeenCalled();
     });
 
@@ -173,7 +228,7 @@ describe('PagesService', () => {
       prisma.page.findUnique.mockResolvedValue(current);
       prisma.$queryRaw.mockResolvedValue([{ id: 's1' }]);
       prisma.page.aggregate.mockResolvedValue({ _max: { position: null } });
-      prisma.page.update.mockResolvedValue({ id: 'a' });
+      prisma.page.update.mockResolvedValue({ id: 'a', tags: [] });
       // "a" tem uma filha (ocupa 2 níveis); p8 está no nível 8 e p9 no nível 9
       prisma.page.findMany.mockResolvedValue([
         ...chain(9),

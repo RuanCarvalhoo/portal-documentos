@@ -82,6 +82,7 @@ model Page {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   versions PageVersion[]
+  tags     PageTag[]
 
   // Árvore: filtra por espaço, agrupa por pai, ordena por posição. Pelo prefixo à esquerda
   // também serve buscas só por space_id → sem índice separado em space_id.
@@ -117,4 +118,29 @@ model PageVersion {
   // PK natural: uma versão por número em cada página; também serve à listagem por página
   @@id([pageId, version])
   @@map("page_versions")
+}
+
+// Tags (ADR 011): classificação que atravessa os espaços. O nome já chega normalizado
+// (minúsculas, hífens no lugar de espaços), então o unique dispensa comparação sem caixa.
+model Tag {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  pages PageTag[]
+
+  @@map("tags")
+}
+
+// N:N entre páginas e tags. A PK (page_id, tag_id) atende "tags da página" e o índice em
+// tag_id atende "páginas da tag" (e o cascade quando uma tag é excluída).
+model PageTag {
+  pageId String @map("page_id") @db.Uuid
+  page   Page   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  tagId  String @map("tag_id") @db.Uuid
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([pageId, tagId])
+  @@index([tagId])
+  @@map("page_tags")
 }
