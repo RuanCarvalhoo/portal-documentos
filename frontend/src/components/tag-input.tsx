@@ -46,7 +46,10 @@ export function TagInput({ tags, onChange }: TagInputProps) {
       </label>
       <div className="mt-1.5 flex min-h-10 w-full flex-wrap items-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1.5 focus-within:border-foreground/40 focus-within:ring-2 focus-within:ring-accent-fg/25">
         {tags.map((tag) => (
-          <span key={tag} className="inline-flex items-center gap-1 rounded-md bg-accent-bg py-0.5 pr-1 pl-2 text-xs text-accent-fg">
+          <span
+            key={tag}
+            className="inline-flex items-center gap-1 rounded-md bg-accent-bg py-0.5 pr-1 pl-2 text-xs text-accent-fg"
+          >
             #{tag}
             <button
               type="button"

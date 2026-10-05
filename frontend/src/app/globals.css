@@ -174,3 +174,13 @@ html {
 .hljs-meta {
   color: var(--hl-attr);
 }
+
+/* Imagens do Markdown (diagramas enviados, prints): moldura e fundo claro também no tema escuro,
+   porque a maioria dos diagramas tem fundo transparente ou branco */
+.prose-portal :where(img) {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  max-width: 100%;
+  height: auto;
+}
