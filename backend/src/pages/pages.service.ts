@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreatePageDto } from './dto/create-page.dto';
 import { NavigationSpaceDto, PageDto } from './dto/page.dto';
 import { UpdatePageDto } from './dto/update-page.dto';
-import { buildTree, isSelfOrDescendant, TreeRow } from './tree.util';
+import { buildTree, depthOf, isSelfOrDescendant, MAX_TREE_DEPTH, subtreeHeight, TreeRow } from './tree.util';
 
 const AUTHOR = { select: { id: true, name: true } } as const;
 const PAGE_FIELDS = {
@@ -25,6 +25,7 @@ type Tx = Prisma.TransactionClient;
 
 const NOT_FOUND = 'Página não encontrada';
 const INVALID_PARENT = 'A página pai deve existir e estar no mesmo espaço';
+const TOO_DEEP = `A hierarquia de páginas pode ter no máximo ${MAX_TREE_DEPTH} níveis`;
 
 @Injectable()
 export class PagesService {
@@ -37,9 +38,12 @@ export class PagesService {
       }
       const parentId = dto.parentId ?? null;
       if (parentId) {
-        const parent = await tx.page.findUnique({ where: { id: parentId }, select: { spaceId: true } });
-        if (parent?.spaceId !== spaceId) {
+        const hierarchy = await this.hierarchyOf(tx, spaceId);
+        if (!hierarchy.has(parentId)) {
           throw new BadRequestException(INVALID_PARENT);
+        }
+        if (depthOf(parentId, hierarchy) + 1 > MAX_TREE_DEPTH) {
+          throw new BadRequestException(TOO_DEEP);
         }
       }
       return tx.page.create({
@@ -161,12 +165,8 @@ export class PagesService {
     spaceId: string,
     parentId: string,
   ): Promise<void> {
-    // Uma query traz a hierarquia do espaço; a checagem de ciclo roda em memória
-    const rows = await tx.page.findMany({
-      where: { spaceId },
-      select: { id: true, parentId: true },
-    });
-    const parentById = new Map(rows.map((row) => [row.id, row.parentId]));
+    // Uma query traz a hierarquia do espaço; as checagens de ciclo e profundidade rodam em memória
+    const parentById = await this.hierarchyOf(tx, spaceId);
     if (!parentById.has(parentId)) {
       throw new BadRequestException(INVALID_PARENT);
     }
@@ -175,6 +175,16 @@ export class PagesService {
         'Uma página não pode ser movida para dentro dela mesma ou de uma subpágina',
       );
     }
+    // A página leva junto toda a subárvore: o nível do novo pai mais a altura dela não pode passar do teto
+    if (depthOf(parentId, parentById) + subtreeHeight(pageId, parentById) > MAX_TREE_DEPTH) {
+      throw new BadRequestException(TOO_DEEP);
+    }
+  }
+
+  /** Pai de cada página do espaço (id → parentId), numa única query sem content. */
+  private async hierarchyOf(tx: Tx, spaceId: string): Promise<Map<string, string | null>> {
+    const rows = await tx.page.findMany({ where: { spaceId }, select: { id: true, parentId: true } });
+    return new Map(rows.map((row) => [row.id, row.parentId]));
   }
 
   // Nova página (ou página movida) entra no fim da lista de irmãos
