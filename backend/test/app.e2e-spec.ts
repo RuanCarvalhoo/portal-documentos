@@ -20,10 +20,7 @@ describe('App foundation (e2e)', () => {
   });
 
   it('GET /health reports the database as up', () => {
-    return request(app.getHttpServer())
-      .get('/health')
-      .expect(200)
-      .expect({ status: 'ok', database: 'up' });
+    return request(app.getHttpServer()).get('/health').expect(200).expect({ status: 'ok', database: 'up' });
   });
 
   it('answers unknown routes with the standard error envelope', async () => {

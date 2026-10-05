@@ -73,10 +73,7 @@ describe('Auth (e2e)', () => {
   });
 
   it('logs in with valid credentials', async () => {
-    const res = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({ email, password })
-      .expect(200);
+    const res = await request(app.getHttpServer()).post('/auth/login').send({ email, password }).expect(200);
 
     token = res.body.accessToken;
     expect(res.body.user.email).toBe(email);

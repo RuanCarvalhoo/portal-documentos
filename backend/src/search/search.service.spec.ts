@@ -43,7 +43,9 @@ describe('SearchService', () => {
 
     const { where } = prisma.page.findMany.mock.calls[0][0];
     expect(where.OR[0].title.contains).toBe(escapeLikeWildcards('100%_ok'));
-    expect(escapeLikeWildcards('100%_ok')).toBe('100' + String.fromCharCode(92) + '%' + String.fromCharCode(92) + '_ok');
+    expect(escapeLikeWildcards('100%_ok')).toBe(
+      '100' + String.fromCharCode(92) + '%' + String.fromCharCode(92) + '_ok',
+    );
   });
 
   it('returns each hit with its space name and a snippet, plus pagination metadata', async () => {

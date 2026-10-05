@@ -8,10 +8,7 @@ import { PrismaClient } from '../generated/prisma/client';
  * cada instância abre o próprio pool de conexões, então nunca use `new PrismaClient()` nos services.
  */
 @Injectable()
-export class PrismaService
-  extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy
-{
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor(configService: ConfigService) {
     // Prisma 7 exige driver adapter; o PrismaPg usa o driver `pg`.
     const adapter = new PrismaPg({

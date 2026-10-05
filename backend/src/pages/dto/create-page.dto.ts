@@ -27,10 +27,7 @@ export const PageContentRules = (): PropertyDecorator =>
 
 // Aqui null é válido: significa "sem pai" (raiz do espaço)
 export const ParentIdRules = (): PropertyDecorator =>
-  applyDecorators(
-    IsOptional(),
-    IsUUID('all', { message: 'parentId deve ser um identificador válido' }),
-  );
+  applyDecorators(IsOptional(), IsUUID('all', { message: 'parentId deve ser um identificador válido' }));
 
 export class CreatePageDto {
   /** @example Introdução */

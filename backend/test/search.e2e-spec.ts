@@ -33,7 +33,10 @@ describe('Search (e2e)', () => {
     await http()
       .post(`/spaces/${spaceId}/pages`)
       .set(auth)
-      .send({ title: 'E2E Outra', content: `Introdução longa. O termo ${WORD.toUpperCase()} aparece no meio.` });
+      .send({
+        title: 'E2E Outra',
+        content: `Introdução longa. O termo ${WORD.toUpperCase()} aparece no meio.`,
+      });
   });
 
   afterAll(async () => {
@@ -79,7 +82,9 @@ describe('Search (e2e)', () => {
 
   it('treats LIKE wildcards literally', async () => {
     // Sem escape, o _ casaria qualquer caractere e acharia a palavra do teste
-    const res = await http().get(`/search?q=${WORD.replace('a', '_')}`).expect(200);
+    const res = await http()
+      .get(`/search?q=${WORD.replace('a', '_')}`)
+      .expect(200);
 
     expect(res.body.meta.total).toBe(0);
   });
