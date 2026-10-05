@@ -4,7 +4,8 @@ import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
 import remarkGfm from 'remark-gfm';
 
-const EXTERNAL = /^https?:\/\//;
+// Inclui "//site.com" (relativo ao protocolo): começa com "/", mas é outro site
+const EXTERNAL = /^(https?:)?\/\//;
 
 const components: Components = {
   a: ({ href = '', children }) =>
