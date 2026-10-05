@@ -6,6 +6,8 @@ import { lastForwardedIp } from './forwarded-for';
 import type { NavigationSpace } from './types';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Igual ao statement_timeout da API: além disso a consulta já teria sido cancelada lá
+const SERVER_FETCH_TIMEOUT_MS = 10_000;
 
 /**
  * apiFetch a partir do servidor do Next. Para a API, toda leitura renderizada aqui viria do IP
@@ -18,7 +20,12 @@ export async function serverFetch<T>(path: string, options: RequestOptions = {})
   const clientIp = lastForwardedIp((await headers()).get('x-forwarded-for'));
   const forwarding =
     secret && clientIp ? { 'x-portal-client-ip': clientIp, 'x-portal-proxy-secret': secret } : undefined;
-  return apiFetch<T>(path, { ...options, headers: { ...options.headers, ...forwarding } });
+  // Com teto: uma API lenta não pode deixar a página carregando para sempre
+  return apiFetch<T>(path, {
+    ...options,
+    timeoutMs: options.timeoutMs ?? SERVER_FETCH_TIMEOUT_MS,
+    headers: { ...options.headers, ...forwarding },
+  });
 }
 
 /**
