@@ -255,6 +255,56 @@ describe('Pages (e2e)', () => {
     expect(edited.body.version).toBe(page.version + 1);
   });
 
+  it('keeps the previous text of a page as a version on every edit of title or content', async () => {
+    const ownSpaceId = (await http().post('/spaces').set(auth).send({ name: 'E2E Histórico' })).body.id;
+    const page = (
+      await http()
+        .post(`/spaces/${ownSpaceId}/pages`)
+        .set(auth)
+        .send({ title: 'E2E Versionada', content: 'Primeiro texto' })
+        .expect(201)
+    ).body;
+    const other = (
+      await http().post(`/spaces/${ownSpaceId}/pages`).set(auth).send({ title: 'E2E Outra raiz' }).expect(201)
+    ).body;
+
+    const edited = (
+      await http()
+        .patch(`/pages/${page.id}`)
+        .set(editorAuth)
+        .send({ content: 'Segundo texto', version: page.version })
+        .expect(200)
+    ).body;
+    // Mover sem editar o texto não gera versão
+    await http()
+      .patch(`/pages/${page.id}`)
+      .set(auth)
+      .send({ parentId: other.id, version: edited.version })
+      .expect(200);
+
+    const list = await http().get(`/pages/${page.id}/versions`).expect(200);
+    expect(list.body.meta).toMatchObject({ total: 1, page: 1 });
+    expect(list.body.data).toEqual([
+      {
+        version: 1,
+        title: 'E2E Versionada',
+        editedBy: { id: page.createdBy.id, name: page.createdBy.name },
+        editedAt: page.updatedAt,
+      },
+    ]);
+    expect(list.body.data[0]).not.toHaveProperty('content');
+
+    const first = await http().get(`/pages/${page.id}/versions/1`).expect(200);
+    expect(first.body).toMatchObject({ pageId: page.id, version: 1, content: 'Primeiro texto' });
+
+    await http().get(`/pages/${page.id}/versions/2`).expect(404);
+    await http().get(`/pages/${page.id}/versions/abc`).expect(400);
+    await http().get(`/pages/${MISSING_ID}/versions`).expect(404);
+
+    await http().delete(`/pages/${page.id}`).set(auth).expect(204);
+    await http().get(`/pages/${page.id}/versions/1`).expect(404);
+  });
+
   it('applies the tree rules to ids sent in upper case too', async () => {
     const ownSpaceId = (await http().post('/spaces').set(auth).send({ name: 'E2E Maiúsculas' })).body.id;
     const createPage = (title: string, parentId?: string) =>

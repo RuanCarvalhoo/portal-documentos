@@ -1,10 +1,12 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Paginated, PaginationQueryDto, toPage, toSkipTake } from '../common/pagination.dto';
 import { orNotFound } from '../common/prisma-errors';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePageDto } from './dto/create-page.dto';
 import { NavigationSpaceDto, PageDto } from './dto/page.dto';
-import { UpdatePageDto } from './dto/update-page.dto';
+import { PageVersionDto, PageVersionSummaryDto } from './dto/page-version.dto';
+import { MAX_VERSION, UpdatePageDto } from './dto/update-page.dto';
 import { buildTree, depthOf, isSelfOrDescendant, MAX_TREE_DEPTH, subtreeHeight, TreeRow } from './tree.util';
 
 const AUTHOR = { select: { id: true, name: true } } as const;
@@ -21,6 +23,7 @@ const PAGE_FIELDS = {
   createdBy: AUTHOR,
   updatedBy: AUTHOR,
 } as const;
+const VERSION_SUMMARY_FIELDS = { version: true, title: true, editedBy: AUTHOR, editedAt: true } as const;
 type Tx = Prisma.TransactionClient;
 
 const NOT_FOUND = 'Página não encontrada';
@@ -121,6 +124,41 @@ export class PagesService {
       }
       throw error;
     }
+  }
+
+  /** Versões anteriores da página, da mais recente para a mais antiga (sem o conteúdo). */
+  async versions(id: string, query: PaginationQueryDto): Promise<Paginated<PageVersionSummaryDto>> {
+    // Existência da página, página da lista e total numa única ida ao banco
+    const [pageCount, data, total] = await this.prisma.$transaction([
+      this.prisma.page.count({ where: { id } }),
+      this.prisma.pageVersion.findMany({
+        where: { pageId: id },
+        select: VERSION_SUMMARY_FIELDS,
+        orderBy: { version: 'desc' },
+        ...toSkipTake(query),
+      }),
+      this.prisma.pageVersion.count({ where: { pageId: id } }),
+    ]);
+    if (pageCount === 0) {
+      throw new NotFoundException(NOT_FOUND);
+    }
+    return toPage(data, total, query);
+  }
+
+  /** Uma versão anterior com o conteúdo completo. */
+  async version(id: string, version: number): Promise<PageVersionDto> {
+    // Fora do int4 nenhuma versão existe (e a query falharia no banco com 500)
+    const found =
+      version >= 1 && version <= MAX_VERSION
+        ? await this.prisma.pageVersion.findUnique({
+            where: { pageId_version: { pageId: id, version } },
+            select: { pageId: true, content: true, ...VERSION_SUMMARY_FIELDS },
+          })
+        : null;
+    if (!found) {
+      throw new NotFoundException('Versão não encontrada');
+    }
+    return found;
   }
 
   /** Exclui a página e, por ON DELETE CASCADE, todas as subpáginas. */
