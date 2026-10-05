@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import { ApiError, apiFetch, type RequestOptions } from './api';
 import { lastForwardedIp } from './forwarded-for';
+import { describeError, logEvent } from './log';
 import type { NavigationSpace } from './types';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -60,7 +61,7 @@ export const getNavigation = cache(async (): Promise<NavigationSpace[] | null> =
     // Com teto: o layout de toda rota espera a navegação, então uma API lenta não pode travar o site
     return await serverFetch<NavigationSpace[]>('/navigation', { timeoutMs: 5_000 });
   } catch (error) {
-    console.error('Falha ao carregar a navegação', error);
+    logEvent('error', 'Falha ao carregar a navegação', { error: describeError(error) });
     return null;
   }
 });

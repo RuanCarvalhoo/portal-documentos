@@ -24,9 +24,9 @@ Resumo no [README](../README.md#segurança). Aqui ficam os detalhes, as premissa
 | `GET /search` | 30 por minuto |
 | Criar, editar e excluir espaços e páginas | 120 por minuto (por rota) |
 
-**Quem é o cliente.** As páginas renderizadas pelo Next chamam a API a partir do container do frontend, e todo visitante chegaria com o mesmo IP — a busca teria 30 por minuto para todo mundo junto. Por isso o servidor do Next repassa o IP de quem pediu a página (`x-portal-client-ip`), junto com um segredo compartilhado (`x-portal-proxy-secret` = `INTERNAL_API_SECRET`, comparado em tempo constante). Sem o segredo certo (ou com ele vazio) o cabeçalho é ignorado e vale o IP da conexão; a API não usa `trust proxy`.
+**Quem é o cliente.** Toda chamada chega à API vinda do servidor do Next: as páginas renderizadas no servidor e também as chamadas do navegador, que passam pelo proxy `/api` ([ADR 008](adr/008-proxy-da-api-no-frontend.md)). Sem tratamento, todo visitante teria o IP do container do frontend, e cada limite valeria para todo mundo junto. Por isso o Next repassa o IP de quem fez a requisição (`x-portal-client-ip`) junto com um segredo compartilhado (`x-portal-proxy-secret` = `INTERNAL_API_SECRET`, comparado em tempo constante). Sem o segredo certo (ou com ele vazio), o cabeçalho é ignorado e vale o IP da conexão. A API não usa `trust proxy`.
 
-**Premissa de implantação.** O IP repassado é o **último** item do `X-Forwarded-For` que o Next recebe. Sem proxy, o Next preenche esse cabeçalho com o IP da conexão só quando ele não vem na requisição — ou seja, um cliente consegue escolher o IP repassado nas leituras feitas pelo Next (busca, páginas). Em produção, um proxy reverso na frente do frontend deve acrescentar ou sobrescrever o `X-Forwarded-For`. Escritas e login vão direto do navegador para a API e usam o IP da conexão.
+**Premissa de implantação.** O IP repassado é o **último** item do `X-Forwarded-For` que o Next recebe. Sem proxy na frente, o Next só preenche esse cabeçalho com o IP da conexão quando ele não vem na requisição. Ou seja, um cliente consegue escolher o IP repassado, inclusive no login e nas escritas. Em produção, o proxy reverso ou balanceador na frente do frontend deve acrescentar o IP da conexão ao `X-Forwarded-For` (`$proxy_add_x_forwarded_for` no nginx). No compose, as portas ficam só em `127.0.0.1`.
 
 ## Estrutura das páginas
 
@@ -43,7 +43,7 @@ Resumo no [README](../README.md#segurança). Aqui ficam os detalhes, as premissa
 
 ## API, banco e Docker
 
-- `helmet` na API; CORS restrito à origem do frontend (`CORS_ORIGIN`, validada como origem exata).
+- `helmet` na API; CORS restrito a uma origem (`CORS_ORIGIN`, validada como origem exata). O portal não depende de CORS: o navegador só fala com a origem do frontend, e o proxy `/api` repassa uma allowlist de cabeçalhos ([ADR 008](adr/008-proxy-da-api-no-frontend.md)).
 - SQL pelo Prisma (parametrizado); os SQL manuais (lock do espaço, health check, advisory lock do seed) usam *tagged templates* parametrizados. `statement_timeout` de 10 s.
 - Containers da API e do frontend rodam como usuário `node`, com `no-new-privileges`.
 - As portas 3000, 3001 e 5433 ficam só em `127.0.0.1`.

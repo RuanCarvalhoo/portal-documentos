@@ -27,7 +27,8 @@ services:
       # Dentro da rede do Compose o banco é db:5432 (a 5433 é só a porta publicada no host)
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-portal-documentos}
       PORT: 3001
-      # Única origem liberada no CORS: o frontend acessado pelo navegador
+      # Origem liberada no CORS para clientes que chamem a API direto. O portal não depende dele:
+      # o navegador fala só com o frontend, que repassa /api para cá (ADR 008)
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       # Valor padrão só para avaliação local; em qualquer outro ambiente, defina JWT_SECRET
       JWT_SECRET: ${JWT_SECRET:-dev-only-jwt-secret-change-me-0123456789}
@@ -51,15 +52,12 @@ services:
       - no-new-privileges:true
 
   frontend:
-    build:
-      context: ./frontend
-      args:
-        # URL usada pelo navegador (fora do Docker), embutida no bundle no build
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    build: ./frontend
     environment:
-      # URL usada pelos Server Components (dentro da rede do Compose)
+      # API na rede do Compose. Usada pelos Server Components e pelo proxy /api, que atende as
+      # chamadas do navegador: o navegador nunca acessa a porta 3001 (ADR 008)
       API_URL: http://backend:3001
-      # Mesmo valor do backend (repasse do IP do cliente nas leituras feitas pelo servidor)
+      # Mesmo valor do backend (repasse do IP do cliente nas chamadas feitas pelo servidor do Next)
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-dev-only-proxy-secret-change-me-0123456789}
     ports:
       - "127.0.0.1:3000:3000"

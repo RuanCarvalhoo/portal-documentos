@@ -1,10 +1,16 @@
-const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+import { PROXY_PREFIX } from './proxy.ts';
+
 const CONNECTION_ERROR = 'Não foi possível conectar à API. Tente novamente em instantes.';
 
-// No servidor (Server Components dentro do Docker) a API é o serviço "backend" da rede interna;
-// no navegador, só a URL publicada no host funciona.
+/** API vista pelo servidor do Next: no Compose, o serviço "backend" da rede interna. */
+export function serverApiUrl(): string {
+  return process.env.API_URL ?? 'http://localhost:3001';
+}
+
+// O navegador nunca chama a API direto: fala com /api na própria origem do portal, e o servidor
+// do Next repassa (app/api/[...path]/route.ts, ADR 008). Sem CORS e sem URL da API no bundle.
 function baseUrl(): string {
-  return typeof window === 'undefined' ? (process.env.API_URL ?? PUBLIC_API_URL) : PUBLIC_API_URL;
+  return typeof window === 'undefined' ? serverApiUrl() : PROXY_PREFIX;
 }
 
 /** Erro da API já com as mensagens do envelope `{ statusCode, message, ... }`. */
@@ -31,16 +37,18 @@ export interface RequestOptions {
 
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, token, timeoutMs, headers } = options;
+  // Upload: o navegador monta o multipart e o Content-Type com o boundary
+  const form = typeof FormData !== 'undefined' && body instanceof FormData;
   let response: Response;
   try {
     response = await fetch(baseUrl() + path, {
       method,
       headers: {
         ...headers,
-        ...(body !== undefined && { 'Content-Type': 'application/json' }),
+        ...(body !== undefined && !form && { 'Content-Type': 'application/json' }),
         ...(token && { Authorization: `Bearer ${token}` }),
       },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : form ? body : JSON.stringify(body),
       // Dados sempre atuais: a documentação muda a cada edição
       cache: 'no-store',
       signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,

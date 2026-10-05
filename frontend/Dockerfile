@@ -5,9 +5,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-# NEXT_PUBLIC_* é embutido no bundle durante o build: por isso é build arg, não env de runtime
-ARG NEXT_PUBLIC_API_URL=http://localhost:3001
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# Nenhuma URL da API entra no bundle: o navegador chama /api na própria origem e o servidor do
+# Next repassa para API_URL, lida em tempo de execução (ADR 008)
 RUN npm run build
 
 # ---- runtime (output standalone: só o servidor e as dependências que ele usa)
