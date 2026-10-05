@@ -55,7 +55,7 @@ describe('Auth (e2e)', () => {
 
     expect(res.body.message).toEqual(
       expect.arrayContaining([
-        'property role should not exist',
+        'Campo não permitido: role',
         'O nome deve ter entre 2 e 80 caracteres',
         'Informe um e-mail válido',
         'A senha deve ter pelo menos 8 caracteres',

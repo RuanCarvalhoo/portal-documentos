@@ -18,21 +18,47 @@ const INTERNAL_ERROR: HttpError = {
   message: 'Erro interno do servidor',
 };
 
+// Mensagens que o próprio framework gera em inglês: o ValidationPipe (campo fora do DTO) e o
+// Nest, que converte JSON inválido e "%" malformado na URL em BadRequestException com a
+// mensagem original. A API fala pt-BR com quem a usa.
+const FRAMEWORK_MESSAGES: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]> = [
+  [/^property (.+) should not exist$/, ([, field]) => `Campo não permitido: ${field}`],
+  [/^Failed to decode param /, () => 'Parâmetro inválido na URL'],
+  [/\bJSON\b/, () => 'O corpo da requisição não é um JSON válido'],
+];
+
+// Erros do body-parser chegam com um `type` estável; os demais ficam com a mensagem genérica
+const BODY_PARSER_MESSAGES: Readonly<Record<string, string>> = {
+  'entity.too.large': 'O corpo da requisição é grande demais',
+};
+
 /** Traduz qualquer exceção para status + mensagem segura de expor ao cliente. */
 export function toHttpError(exception: unknown): HttpError {
   if (exception instanceof HttpException) {
+    const message = messageOf(exception.getResponse()) ?? exception.message;
     return {
       status: exception.getStatus(),
-      message: messageOf(exception.getResponse()) ?? exception.message,
+      message: Array.isArray(message) ? message.map(translate) : translate(message),
     };
   }
   if (exception instanceof Prisma.PrismaClientKnownRequestError) {
     return { ...(PRISMA_ERRORS[exception.code] ?? INTERNAL_ERROR) };
   }
   if (isExposedClientError(exception)) {
-    return { status: exception.status, message: exception.message };
+    const type = 'type' in exception && typeof exception.type === 'string' ? exception.type : '';
+    return { status: exception.status, message: BODY_PARSER_MESSAGES[type] ?? 'Requisição inválida' };
   }
   return { ...INTERNAL_ERROR };
+}
+
+function translate(message: string): string {
+  for (const [pattern, toPortuguese] of FRAMEWORK_MESSAGES) {
+    const match = pattern.exec(message);
+    if (match) {
+      return toPortuguese(match);
+    }
+  }
+  return message;
 }
 
 function messageOf(body: unknown): string | string[] | undefined {
