@@ -1,4 +1,5 @@
 const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+const CONNECTION_ERROR = 'Não foi possível conectar à API. Tente novamente em instantes.';
 
 // No servidor (Server Components dentro do Docker) a API é o serviço "backend" da rede interna;
 // no navegador, só a URL publicada no host funciona.
@@ -45,13 +46,22 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
       signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
     });
   } catch {
-    throw new ApiError(0, ['Não foi possível conectar à API. Tente novamente em instantes.']);
+    throw new ApiError(0, [CONNECTION_ERROR]);
   }
 
   if (response.status === 204) {
     return undefined as T;
   }
-  const data: unknown = await response.json().catch(() => null);
+  let data: unknown = null;
+  try {
+    data = await response.json();
+  } catch {
+    // 2xx com corpo ilegível (a conexão caiu ou o tempo acabou no meio da leitura) não é sucesso:
+    // devolver null faria, por exemplo, /auth/me "dar certo" sem usuário
+    if (response.ok) {
+      throw new ApiError(0, [CONNECTION_ERROR]);
+    }
+  }
   if (!response.ok) {
     throw new ApiError(response.status, messagesOf(data));
   }
