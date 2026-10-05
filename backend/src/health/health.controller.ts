@@ -1,9 +1,4 @@
-import {
-  Controller,
-  Get,
-  Logger,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { Controller, Get, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface HealthStatus {
@@ -26,10 +21,7 @@ export class HealthController {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
     } catch (error: unknown) {
-      this.logger.error(
-        'Database health check failed',
-        error instanceof Error ? error.stack : String(error),
-      );
+      this.logger.error('Database health check failed', error instanceof Error ? error.stack : String(error));
       throw new ServiceUnavailableException('Banco de dados indisponível');
     }
     return { status: 'ok', database: 'up' };

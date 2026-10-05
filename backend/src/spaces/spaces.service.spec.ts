@@ -38,17 +38,13 @@ describe('SpacesService', () => {
     const result = await service.findAll({ page: 2, limit: 10 });
 
     expect(result).toEqual({ data: [space], meta: { total: 21, page: 2, limit: 10 } });
-    expect(prisma.space.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ skip: 10, take: 10 }),
-    );
+    expect(prisma.space.findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 10, take: 10 }));
   });
 
   it('answers 404 for a space that does not exist', async () => {
     prisma.space.findUnique.mockResolvedValue(null);
 
-    await expect(service.findOne('s1')).rejects.toThrow(
-      new NotFoundException('Espaço não encontrado'),
-    );
+    await expect(service.findOne('s1')).rejects.toThrow(new NotFoundException('Espaço não encontrado'));
   });
 
   it('answers 404 when updating a space that does not exist', async () => {
@@ -60,18 +56,14 @@ describe('SpacesService', () => {
   });
 
   it('rejects an update without any field', async () => {
-    await expect(service.update('s1', { name: undefined })).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(service.update('s1', { name: undefined })).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.space.update).not.toHaveBeenCalled();
   });
 
   it('answers 404 when deleting a space that does not exist', async () => {
     prisma.space.delete.mockRejectedValue(notFound());
 
-    await expect(service.remove('s1')).rejects.toThrow(
-      new NotFoundException('Espaço não encontrado'),
-    );
+    await expect(service.remove('s1')).rejects.toThrow(new NotFoundException('Espaço não encontrado'));
   });
 
   it('propagates unexpected database errors untouched', async () => {

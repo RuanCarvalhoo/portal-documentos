@@ -47,9 +47,12 @@ describe('Spaces (e2e)', () => {
     expect(res.body.meta).toMatchObject({ page: 1, limit: 20 });
   });
 
-  it.each(['limit=51', 'limit=0', 'page=0', 'page=abc', 'page=1e19', 'page=1&page=2'])('rejects invalid pagination %s', (query) => {
-    return request(app.getHttpServer()).get(`/spaces?${query}`).expect(400);
-  });
+  it.each(['limit=51', 'limit=0', 'page=0', 'page=abc', 'page=1e19', 'page=1&page=2'])(
+    'rejects invalid pagination %s',
+    (query) => {
+      return request(app.getHttpServer()).get(`/spaces?${query}`).expect(400);
+    },
+  );
 
   it('answers 400 for a malformed id and 404 for a missing one', async () => {
     await request(app.getHttpServer()).get('/spaces/nao-e-uuid').expect(400);
@@ -116,7 +119,11 @@ describe('Spaces (e2e)', () => {
   });
 
   it('answers 404 when an authenticated user edits or deletes a missing space', async () => {
-    await request(app.getHttpServer()).patch(`/spaces/${MISSING_ID}`).set(auth).send({ name: 'x' }).expect(404);
+    await request(app.getHttpServer())
+      .patch(`/spaces/${MISSING_ID}`)
+      .set(auth)
+      .send({ name: 'x' })
+      .expect(404);
     await request(app.getHttpServer()).delete(`/spaces/${MISSING_ID}`).set(auth).expect(404);
   });
 

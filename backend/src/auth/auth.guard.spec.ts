@@ -17,9 +17,7 @@ function contextWith(authorization?: string) {
 
 describe('AuthGuard', () => {
   it('rejects requests without a token', async () => {
-    await expect(guard.canActivate(contextWith().context)).rejects.toBeInstanceOf(
-      UnauthorizedException,
-    );
+    await expect(guard.canActivate(contextWith().context)).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it('rejects other authorization schemes', async () => {
@@ -57,9 +55,9 @@ describe('AuthGuard', () => {
   it('rejects a token whose sub is not a user id', async () => {
     const numericSub = jwt.sign({ sub: 123 });
 
-    await expect(
-      guard.canActivate(contextWith(`Bearer ${numericSub}`).context),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(guard.canActivate(contextWith(`Bearer ${numericSub}`).context)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 
   it('accepts the scheme in any case', async () => {

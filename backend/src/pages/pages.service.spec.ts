@@ -46,9 +46,9 @@ describe('PagesService', () => {
       prisma.$queryRaw.mockResolvedValue([{ id: 's1' }]);
       prisma.page.findUnique.mockResolvedValue({ spaceId: 'outro' });
 
-      await expect(
-        service.create('s1', { title: 'Nova', parentId: 'p1' }, USER),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.create('s1', { title: 'Nova', parentId: 'p1' }, USER)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
       expect(prisma.page.create).not.toHaveBeenCalled();
     });
 
@@ -136,17 +136,13 @@ describe('PagesService', () => {
       ]);
 
       await expect(service.update('a', { parentId: 'b', version: 1 }, USER)).rejects.toThrow(
-        new BadRequestException(
-          'Uma página não pode ser movida para dentro dela mesma ou de uma subpágina',
-        ),
+        new BadRequestException('Uma página não pode ser movida para dentro dela mesma ou de uma subpágina'),
       );
       expect(prisma.page.update).not.toHaveBeenCalled();
     });
 
     it('rejects an update that only sends the version', async () => {
-      await expect(service.update('a', { version: 1 }, USER)).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(service.update('a', { version: 1 }, USER)).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 
@@ -172,9 +168,7 @@ describe('PagesService', () => {
       {
         id: 's1',
         name: 'Arquitetura',
-        pages: [
-          { id: 'a', title: 'Introdução', children: [{ id: 'b', title: 'API', children: [] }] },
-        ],
+        pages: [{ id: 'a', title: 'Introdução', children: [{ id: 'b', title: 'API', children: [] }] }],
       },
       { id: 's2', name: 'Vazio', pages: [] },
     ]);

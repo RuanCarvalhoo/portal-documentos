@@ -28,9 +28,7 @@ describe('buildTree', () => {
   });
 
   it('keeps a page whose parent is missing as a root instead of dropping it', () => {
-    expect(buildTree([row('orphan', 'gone')])).toEqual([
-      { id: 'orphan', title: 'orphan', children: [] },
-    ]);
+    expect(buildTree([row('orphan', 'gone')])).toEqual([{ id: 'orphan', title: 'orphan', children: [] }]);
   });
 
   it('returns an empty tree for no pages', () => {

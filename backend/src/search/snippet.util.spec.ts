@@ -13,9 +13,7 @@ describe('buildSnippet', () => {
   });
 
   it('finds the term regardless of case', () => {
-    expect(buildSnippet('Guia de MARKDOWN completo', 'markdown', 100)).toBe(
-      'Guia de MARKDOWN completo',
-    );
+    expect(buildSnippet('Guia de MARKDOWN completo', 'markdown', 100)).toBe('Guia de MARKDOWN completo');
   });
 
   it('starts from the beginning when the term is only in the title', () => {
@@ -57,7 +55,11 @@ describe('buildSnippet', () => {
 
     it('keeps only the text of links and the alt of images', () => {
       expect(
-        buildSnippet('Veja o [guia](https://commonmark.org) e ![Diagrama](https://x.dev/a.png).', 'guia', 200),
+        buildSnippet(
+          'Veja o [guia](https://commonmark.org) e ![Diagrama](https://x.dev/a.png).',
+          'guia',
+          200,
+        ),
       ).toBe('Veja o guia e Diagrama.');
     });
 

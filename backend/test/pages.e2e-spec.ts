@@ -120,8 +120,7 @@ describe('Pages (e2e)', () => {
 
     it('lets only one of two simultaneous saves of the same version win', async () => {
       const version = await versionOf(rootId);
-      const save = (content: string) =>
-        http().patch(`/pages/${rootId}`).set(auth).send({ content, version });
+      const save = (content: string) => http().patch(`/pages/${rootId}`).set(auth).send({ content, version });
 
       const statuses = (await Promise.all([save('A'), save('B')])).map((res) => res.status);
 
