@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SpacesService } from './spaces.service';
@@ -7,6 +7,7 @@ const space = {
   id: 's1',
   name: 'Arquitetura',
   description: null,
+  version: 3,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -48,15 +49,62 @@ describe('SpacesService', () => {
   });
 
   it('answers 404 when updating a space that does not exist', async () => {
-    prisma.space.update.mockRejectedValue(notFound());
+    prisma.space.findUnique.mockResolvedValue(null);
 
-    await expect(service.update('s1', { name: 'Novo' })).rejects.toThrow(
+    await expect(service.update('s1', { name: 'Novo', version: 1 })).rejects.toThrow(
+      new NotFoundException('Espaço não encontrado'),
+    );
+    expect(prisma.space.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects an update without any field', async () => {
+    await expect(service.update('s1', { name: undefined, version: 1 })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(prisma.space.update).not.toHaveBeenCalled();
+  });
+
+  it('saves only over the version the client read, and increments it', async () => {
+    prisma.space.findUnique.mockResolvedValue(space);
+    prisma.space.update.mockResolvedValue({ ...space, name: 'Novo', version: 4 });
+
+    const result = await service.update('s1', { name: 'Novo', version: 3 });
+
+    expect(result.version).toBe(4);
+    expect(prisma.space.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 's1', version: 3 },
+        data: { name: 'Novo', version: { increment: 1 } },
+      }),
+    );
+  });
+
+  it('answers 409 when someone else saved after the version the client read', async () => {
+    prisma.space.findUnique.mockResolvedValue(space);
+    prisma.space.update.mockRejectedValue(notFound());
+    prisma.space.count.mockResolvedValue(1);
+
+    await expect(service.update('s1', { name: 'Novo', version: 2 })).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+  });
+
+  it('answers 404 when the space is deleted between the read and the save', async () => {
+    prisma.space.findUnique.mockResolvedValue(space);
+    prisma.space.update.mockRejectedValue(notFound());
+    prisma.space.count.mockResolvedValue(0);
+
+    await expect(service.update('s1', { name: 'Novo', version: 3 })).rejects.toThrow(
       new NotFoundException('Espaço não encontrado'),
     );
   });
 
-  it('rejects an update without any field', async () => {
-    await expect(service.update('s1', { name: undefined })).rejects.toBeInstanceOf(BadRequestException);
+  it('returns the space untouched when nothing changed, whatever the version', async () => {
+    prisma.space.findUnique.mockResolvedValue(space);
+
+    const result = await service.update('s1', { name: space.name, description: null, version: 1 });
+
+    expect(result).toBe(space);
     expect(prisma.space.update).not.toHaveBeenCalled();
   });
 

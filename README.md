@@ -91,7 +91,7 @@ Todas têm **padrões de desenvolvimento** no `docker-compose.yml`: nada precisa
    - **cole um print** ou use **Inserir imagem**;
    - veja a pré-visualização ao lado;
    - salve, depois exclua (há confirmação).
-8. **Teste um conflito:** abra o editor da mesma página em duas abas, altere o texto nas duas e salve uma depois da outra. A segunda recebe o aviso, com "ver a versão atual" e "salvar por cima".
+8. **Teste um conflito:** abra o editor da mesma página (ou do mesmo espaço) em duas abas, altere o texto nas duas e salve uma depois da outra. A segunda recebe o aviso, com "ver a versão atual" e "salvar por cima".
 9. **Teste os perfis:**
    - Entre como **`leitor@example.com` / `leitor1234`**: os botões de edição somem, e a API responde 403.
    - Volte como Admin, abra **Usuários** no header e promova o Leitor a Editor.
@@ -172,7 +172,7 @@ Documentação interativa em **http://localhost:3001/docs**. No portal, o navega
 | GET | `/users?page&limit` | Admin | 200 `{ data, meta }`, 401, 403 |
 | PATCH | `/users/:id/role` | Admin | 200, 400, 401, 403, 404, **409** (último Admin), 429 |
 | GET | `/spaces?page&limit` | — | 200 `{ data, meta }`, 400 |
-| POST / PATCH | `/spaces`, `/spaces/:id` | Editor | 201 / 200, 400, 401, 403, 404, 429 |
+| POST / PATCH | `/spaces`, `/spaces/:id` | Editor | 201 / 200, 400, 401, 403, 404, **409** (PATCH: versão desatualizada), 429 |
 | DELETE | `/spaces/:id` | Admin | 204, 400, 401, 403, 404, 429 |
 | GET | `/spaces/:id` | — | 200, 400, 404 |
 | POST | `/spaces/:spaceId/pages` | Editor | 201, 400 (pai inválido, mais de 10 níveis, tags), 401, 403, 404, 429 |
@@ -199,8 +199,8 @@ Todo erro sai no mesmo formato, em português. `message` é um texto ou, em erro
 
 | Camada | O que garante | Quantidade |
 |---|---|---|
-| Unitários da API (Jest, Prisma simulado) | Regras de negócio: árvore, ciclo e profundidade, versão/409, tags, perfis e último Admin, autenticação e 403, busca e trecho, assinatura das imagens, mapeamento de erros, logs (id da requisição), validação do ambiente, IP do rate limit, transformação dos documentos do seed | 163 |
-| e2e da API (supertest + Postgres real) | Todas as rotas no caminho feliz e nos erros relevantes (400, 401, 403, 404, 409, 413, 415); 429 no login e nas escritas; saves simultâneos (um 200, outro 409); histórico gravado pelo trigger; perfis (promoção imediata, último Admin, conta removida); tags; upload, deduplicação e ETag; `requestId` | 82 |
+| Unitários da API (Jest, Prisma simulado) | Regras de negócio: árvore, ciclo e profundidade, versão/409 de páginas e espaços, tags, perfis e último Admin, autenticação e 403, busca e trecho, assinatura das imagens, mapeamento de erros, logs (id da requisição), validação do ambiente, IP do rate limit, transformação dos documentos do seed | 167 |
+| e2e da API (supertest + Postgres real) | Todas as rotas no caminho feliz e nos erros relevantes (400, 401, 403, 404, 409, 413, 415); 429 no login e nas escritas; saves simultâneos de página e de espaço (um 200, outro 409); histórico gravado pelo trigger; perfis (promoção imediata, último Admin, conta removida); tags; upload, deduplicação e ETag; `requestId` | 86 |
 | Frontend (`node --test`) | Lógica pura: árvore, sumário, redirect seguro, destaque, paginação, aviso de texto não salvo, cliente da API, proxy (URL de destino e allowlist de cabeçalhos), permissões, tags, inserção de imagens, IP repassado | 53 |
 
 O comportamento de interface (edição, conflito, sessão expirada, histórico, gaveta no celular, perfis, tags e upload) foi verificado no navegador com scripts Playwright durante o desenvolvimento; não há uma suíte e2e de navegador no repositório. As regras de negócio foram escritas com o teste junto.

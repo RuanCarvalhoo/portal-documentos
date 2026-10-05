@@ -34,7 +34,7 @@ Editor, formulários, login, barra lateral recolhível e tela de usuários são 
 - **Texto e preview lado a lado** (abas no celular). O preview usa `useDeferredValue` + `memo`: digitar nunca espera o parse do Markdown.
 - **Tags** como chips, normalizadas com a mesma regra da API (`src/lib/tags.ts`).
 - **Imagens** pelo botão, colando ou arrastando para o texto. O editor confere formato e tamanho, envia para `/api/uploads` e insere `![nome](/api/uploads/<id>)` no cursor (`src/lib/uploads.ts`).
-- **Proteção do texto:** aviso ao sair com alterações não salvas (inclusive pelos links da barra lateral). Num conflito de versão (409), o texto continua no editor, com "ver a versão atual" e "salvar por cima". Com a sessão expirada (401), dá para entrar de novo em outra aba sem perder nada.
+- **Proteção do texto:** aviso ao sair com alterações não salvas (inclusive pelos links da barra lateral). Num conflito de versão (409), o texto continua no editor, com "ver a versão atual" e "salvar por cima". O formulário de espaço faz o mesmo. Com a sessão expirada (401), dá para entrar de novo em outra aba sem perder nada.
 
 ## Markdown
 

@@ -1,6 +1,13 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { Paginated, PaginationQueryDto, toPage, toSkipTake } from '../common/pagination.dto';
 import { orNotFound } from '../common/prisma-errors';
+import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSpaceDto } from './dto/create-space.dto';
 import { SpaceDto } from './dto/space.dto';
@@ -10,6 +17,7 @@ const SPACE_FIELDS = {
   id: true,
   name: true,
   description: true,
+  version: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -51,15 +59,42 @@ export class SpacesService {
   }
 
   async update(id: string, dto: UpdateSpaceDto): Promise<SpaceDto> {
-    if (Object.values(dto).every((value) => value === undefined)) {
+    const { version, ...changes } = dto;
+    if (Object.values(changes).every((value) => value === undefined)) {
       throw new BadRequestException('Informe ao menos um campo para atualizar');
     }
-    const space = await orNotFound(
-      this.prisma.space.update({ where: { id }, data: dto, select: SPACE_FIELDS }),
-      NOT_FOUND,
+    const current = await this.findOne(id);
+    // Salvar sem mudar nada não gera versão nova: senão quem edita o espaço ao mesmo tempo
+    // levaria um 409 por uma "alteração" que não existe
+    const changed = (Object.keys(changes) as (keyof typeof changes)[]).some(
+      (field) => changes[field] !== undefined && changes[field] !== current[field],
     );
-    this.logger.log({ event: 'space.updated', spaceId: id }, 'Espaço atualizado');
-    return space;
+    if (!changed) {
+      return current;
+    }
+
+    try {
+      // Concorrência otimista num único UPDATE ... WHERE id = ? AND version = ? RETURNING, como
+      // nas páginas (ADR 005): só grava se ninguém salvou depois da versão que o cliente leu
+      const space = await this.prisma.space.update({
+        where: { id, version },
+        data: { ...changes, version: { increment: 1 } },
+        select: SPACE_FIELDS,
+      });
+      this.logger.log({ event: 'space.updated', spaceId: id, version: space.version }, 'Espaço atualizado');
+      return space;
+    } catch (error: unknown) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        // Nenhuma linha casou: ou a versão ficou velha (409) ou o espaço sumiu no meio (404)
+        const stillExists = (await this.prisma.space.count({ where: { id } })) > 0;
+        throw stillExists
+          ? new ConflictException(
+              'Este espaço foi alterado por outra pessoa. Recarregue para ver a versão atual.',
+            )
+          : new NotFoundException(NOT_FOUND);
+      }
+      throw error;
+    }
   }
 
   /** Exclui o espaço e, por ON DELETE CASCADE, todas as suas páginas. */

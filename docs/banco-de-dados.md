@@ -9,7 +9,7 @@ PostgreSQL 17 com Prisma 7 ([ADR 001](adr/001-banco-de-dados-postgresql.md)). O 
 | Tabela | Campos principais |
 |---|---|
 | `users` | `id` (uuid v7), `name`, `email` (único, minúsculas), `password_hash`, `role` (`admin`, `editor` ou `reader`; padrão `reader`), datas |
-| `spaces` | `id`, `name`, `description?`, datas |
+| `spaces` | `id`, `name`, `description?`, `version`, datas |
 | `pages` | `id`, `title`, `content` (Markdown), `space_id` → spaces (**cascade**), `parent_id?` → pages (**cascade**), `position`, `version`, `created_by_id` / `updated_by_id` → users, datas |
 | `page_versions` | `(page_id, version)` (chave), `title`, `content`, `edited_by_id` → users, `edited_at`; `page_id` → pages (**cascade**) |
 | `tags` | `id`, `name` (único, já normalizado: minúsculas e hífens), `created_at` |
@@ -18,7 +18,7 @@ PostgreSQL 17 com Prisma 7 ([ADR 001](adr/001-banco-de-dados-postgresql.md)). O 
 
 - Ids **uuid v7**: ordenados no tempo, as inserções caem no fim do índice da chave primária (o v4 aleatório espalha as páginas do B-tree).
 - Árvore por **lista de adjacência** (`parent_id`): mover uma página é um `UPDATE`, e a navegação de todos os espaços sai em 2 queries (espaços e páginas, sem o conteúdo), montada em memória em O(n) ([ADR 002](adr/002-modelagem-da-arvore.md)).
-- `version` serve à concorrência otimista ([ADR 005](adr/005-concorrencia-otimista.md)) e numera o histórico.
+- `version` serve à concorrência otimista em páginas e espaços ([ADR 005](adr/005-concorrencia-otimista.md)). Nas páginas, também numera o histórico.
 - `role` é um enum do Postgres (`user_role`), lido pelo `AuthGuard` a cada requisição autenticada ([ADR 012](adr/012-perfis-de-acesso.md)).
 - Tags em tabela própria, N:N com páginas ([ADR 011](adr/011-tags.md)). Trocar as tags de uma página não passa pelo trigger do histórico.
 - Imagens no próprio banco ([ADR 010](adr/010-armazenamento-de-imagens.md)): `data` usa `STORAGE EXTERNAL`, ou seja, fica fora da linha (TOAST) e não é recomprimido, porque PNG, JPEG, GIF e WebP já vêm comprimidos.

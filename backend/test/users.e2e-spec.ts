@@ -46,7 +46,11 @@ describe('Roles and users (e2e)', () => {
 
   it('lets an editor write but only an admin delete a space', async () => {
     const space = await http().post('/spaces').set(editor.auth).send({ name: 'E2E Editor' }).expect(201);
-    await http().patch(`/spaces/${space.body.id}`).set(editor.auth).send({ name: 'E2E Editado' }).expect(200);
+    await http()
+      .patch(`/spaces/${space.body.id}`)
+      .set(editor.auth)
+      .send({ name: 'E2E Editado', version: space.body.version })
+      .expect(200);
     await http().delete(`/spaces/${space.body.id}`).set(editor.auth).expect(403);
     await http().delete(`/spaces/${space.body.id}`).set(admin.auth).expect(204);
   });

@@ -1,8 +1,6 @@
-import { IsInt, Max, Min, ValidateIf } from 'class-validator';
+import { ValidateIf } from 'class-validator';
+import { VersionRules } from '../../common/version';
 import { PageContentRules, PageTitleRules, ParentIdRules, TagsRules } from './create-page.dto';
-
-// version é int4 no Postgres: acima disso a query falharia com erro 500
-export const MAX_VERSION = 2_147_483_647;
 
 export class UpdatePageDto {
   /** Novo título (omitir mantém o atual) */
@@ -27,8 +25,6 @@ export class UpdatePageDto {
    * em vez de sobrescrever a edição dela (concorrência otimista).
    * @example 1
    */
-  @IsInt({ message: 'version deve ser um número inteiro' })
-  @Min(1, { message: 'version deve ser maior ou igual a 1' })
-  @Max(MAX_VERSION, { message: 'version inválida' })
+  @VersionRules()
   version: number;
 }

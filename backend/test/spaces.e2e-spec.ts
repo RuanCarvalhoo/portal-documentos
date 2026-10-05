@@ -102,12 +102,13 @@ describe('Spaces (e2e)', () => {
 
     await request(app.getHttpServer()).get(`/spaces/${id}`).expect(200);
 
+    expect(created.body.version).toBe(1);
     const updated = await request(app.getHttpServer())
       .patch(`/spaces/${id}`)
       .set(auth)
-      .send({ name: 'E2E Espaço renomeado' })
+      .send({ name: 'E2E Espaço renomeado', version: 1 })
       .expect(200);
-    expect(updated.body.name).toBe('E2E Espaço renomeado');
+    expect(updated.body).toMatchObject({ name: 'E2E Espaço renomeado', version: 2 });
 
     await request(app.getHttpServer()).delete(`/spaces/${id}`).set(auth).expect(204);
     await request(app.getHttpServer()).get(`/spaces/${id}`).expect(404);
@@ -121,22 +122,90 @@ describe('Spaces (e2e)', () => {
       .expect(201);
     const url = `/spaces/${created.body.id}`;
 
-    const empty = await request(app.getHttpServer()).patch(url).set(auth).send({}).expect(400);
+    const empty = await request(app.getHttpServer()).patch(url).set(auth).send({ version: 1 }).expect(400);
     expect(empty.body.message).toBe('Informe ao menos um campo para atualizar');
-    await request(app.getHttpServer()).patch(url).set(auth).send({ name: null }).expect(400);
+    await request(app.getHttpServer()).patch(url).set(auth).send({ name: null, version: 1 }).expect(400);
     const cleared = await request(app.getHttpServer())
       .patch(url)
       .set(auth)
-      .send({ description: null })
+      .send({ description: null, version: 1 })
       .expect(200);
     expect(cleared.body.description).toBeNull();
+  });
+
+  describe('concurrent edits', () => {
+    const createSpace = async (name: string): Promise<{ url: string; version: number }> => {
+      const res = await request(app.getHttpServer()).post('/spaces').set(auth).send({ name }).expect(201);
+      return { url: `/spaces/${res.body.id}`, version: res.body.version };
+    };
+
+    it('requires the version the client read', async () => {
+      const { url } = await createSpace('E2E Sem versão');
+
+      const res = await request(app.getHttpServer()).patch(url).set(auth).send({ name: 'x' }).expect(400);
+
+      expect(res.body.message).toContain('version deve ser um número inteiro');
+      await request(app.getHttpServer()).patch(url).set(auth).send({ name: 'x', version: 0 }).expect(400);
+    });
+
+    it('refuses a save over a version someone else already replaced', async () => {
+      const { url, version } = await createSpace('E2E Conflito');
+      await request(app.getHttpServer())
+        .patch(url)
+        .set(auth)
+        .send({ description: 'Primeira edição', version })
+        .expect(200);
+
+      const stale = await request(app.getHttpServer())
+        .patch(url)
+        .set(auth)
+        .send({ name: 'E2E Segunda edição', version })
+        .expect(409);
+
+      expect(stale.body.message).toBe(
+        'Este espaço foi alterado por outra pessoa. Recarregue para ver a versão atual.',
+      );
+      const current = await request(app.getHttpServer()).get(url).expect(200);
+      expect(current.body).toMatchObject({
+        name: 'E2E Conflito',
+        description: 'Primeira edição',
+        version: 2,
+      });
+    });
+
+    it('lets only one of two simultaneous saves of the same version win', async () => {
+      const { url, version } = await createSpace('E2E Simultâneo');
+      const save = (name: string) =>
+        request(app.getHttpServer()).patch(url).set(auth).send({ name, version });
+
+      const results = await Promise.all([save('E2E Simultâneo A'), save('E2E Simultâneo B')]);
+
+      expect(results.map(({ status }) => status).sort()).toEqual([200, 409]);
+    });
+
+    it('keeps the version when a save changes nothing, so a concurrent editor gets no 409', async () => {
+      const { url, version } = await createSpace('E2E Intacto');
+
+      const same = await request(app.getHttpServer())
+        .patch(url)
+        .set(auth)
+        .send({ name: 'E2E Intacto', description: null, version })
+        .expect(200);
+
+      expect(same.body.version).toBe(version);
+      await request(app.getHttpServer())
+        .patch(url)
+        .set(auth)
+        .send({ name: 'E2E Editado', version })
+        .expect(200);
+    });
   });
 
   it('answers 404 when an authenticated user edits or deletes a missing space', async () => {
     await request(app.getHttpServer())
       .patch(`/spaces/${MISSING_ID}`)
       .set(auth)
-      .send({ name: 'x' })
+      .send({ name: 'x', version: 1 })
       .expect(404);
     await request(app.getHttpServer()).delete(`/spaces/${MISSING_ID}`).set(auth).expect(404);
   });
@@ -157,7 +226,10 @@ describe('Spaces (e2e)', () => {
   });
 
   it('requires a token to update or delete', async () => {
-    await request(app.getHttpServer()).patch(`/spaces/${MISSING_ID}`).send({ name: 'x' }).expect(401);
+    await request(app.getHttpServer())
+      .patch(`/spaces/${MISSING_ID}`)
+      .send({ name: 'x', version: 1 })
+      .expect(401);
     await request(app.getHttpServer()).delete(`/spaces/${MISSING_ID}`).expect(401);
   });
 });

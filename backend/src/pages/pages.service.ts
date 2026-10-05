@@ -7,13 +7,14 @@ import {
 } from '@nestjs/common';
 import { Paginated, PaginationQueryDto, toPage, toSkipTake } from '../common/pagination.dto';
 import { orNotFound } from '../common/prisma-errors';
+import { MAX_VERSION } from '../common/version';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { sameTags, TAG_NAMES } from '../tags/tags.util';
 import { CreatePageDto } from './dto/create-page.dto';
 import { NavigationSpaceDto, PageDto } from './dto/page.dto';
 import { PageVersionDto, PageVersionSummaryDto } from './dto/page-version.dto';
-import { MAX_VERSION, UpdatePageDto } from './dto/update-page.dto';
+import { UpdatePageDto } from './dto/update-page.dto';
 import { buildTree, depthOf, isSelfOrDescendant, MAX_TREE_DEPTH, subtreeHeight, TreeRow } from './tree.util';
 
 const AUTHOR = { select: { id: true, name: true } } as const;

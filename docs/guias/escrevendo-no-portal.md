@@ -44,7 +44,7 @@ Troque o texto entre colchetes por uma descrição da imagem: é o que leitores 
 
 - Cada vez que o título ou o texto mudam, a versão anterior vai para o **Histórico**, com quem a escreveu e quando. Mover a página ou trocar só as tags não gera versão.
 - **Restaurar** abre o editor com o texto antigo. Ao salvar, ele vira uma versão nova, e a atual também fica no histórico: nada se perde.
-- Se outra pessoa salvou a mesma página depois que você abriu o editor, o portal avisa em vez de apagar o trabalho dela. O seu texto continua no editor, e você escolhe entre **ver a versão atual** (em outra aba) ou **salvar por cima**.
+- Se outra pessoa salvou a mesma página (ou o mesmo espaço) depois que você abriu o editor, o portal avisa em vez de apagar o trabalho dela. O seu texto continua no editor, e você escolhe entre **ver a versão atual** (em outra aba) ou **salvar por cima**.
 
 ## Boas práticas
 

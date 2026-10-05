@@ -1,10 +1,10 @@
-# ADR 005 — Edição concorrente de páginas: concorrência otimista
+# ADR 005 — Edição concorrente de páginas e espaços: concorrência otimista
 
 **Status:** aceito
 
 ## Contexto
 
-Qualquer usuário logado pode editar qualquer página. Duas pessoas podem abrir a mesma página, editar ao mesmo tempo e salvar: sem controle, a segunda gravação apaga silenciosamente a primeira (*lost update*). Edições são longas (minutos no editor) e conflitos são raros.
+Qualquer Editor ou Admin pode editar qualquer página ou espaço. Duas pessoas podem abrir a mesma página, editar ao mesmo tempo e salvar: sem controle, a segunda gravação apaga silenciosamente a primeira (*lost update*). Edições são longas (minutos no editor) e conflitos são raros.
 
 ## Opções consideradas
 
@@ -24,13 +24,16 @@ RETURNING ...
 
 (no Prisma, `update({ where: { id, version } })`). Se nenhuma linha casar, a API distingue: a página ainda existe → outra pessoa salvou antes → **409 Conflict** ("Esta página foi alterada por outra pessoa"); a página sumiu → **404**. O frontend mantém o texto digitado e oferece ver a versão atual (nova aba) ou salvar por cima dela, por escolha explícita.
 
+Os **espaços** seguem a mesma regra: `PATCH /spaces/:id` também exige `version`, responde 409 ("Este espaço foi alterado por outra pessoa") e o formulário do espaço oferece as mesmas duas saídas. Na primeira versão só as páginas tinham `version`, e editar o nome e a descrição de um espaço em duas abas fazia a segunda gravação apagar a primeira sem aviso. A migration `add_space_version` corrigiu isso, e os espaços existentes começam na versão 1.
+
 ## Consequências
 
 - Edições de conteúdo não mantêm lock: leituras e edições não se bloqueiam.
 - A checagem da versão e a gravação acontecem no mesmo `UPDATE`, então não há janela de corrida para a **mesma página** (testado: dois saves simultâneos da mesma versão → um 200, um 409).
+- Criar, mover ou excluir páginas não muda a `version` do espaço: ela protege só o nome e a descrição.
 - A versão protege uma linha, não a **estrutura**: duas movimentações opostas simultâneas (A para dentro de B e B para dentro de A) passariam na checagem de ciclo e formariam um laço. Por isso criar e mover páginas rodam numa transação que trava a linha do espaço (`SELECT ... FOR UPDATE`): mudanças de estrutura no mesmo espaço entram em fila, o que também evita posições duplicadas entre irmãos.
-- O cliente precisa reenviar a versão (vem em toda leitura de página).
-- Um PATCH que não muda nada (mesmo título, conteúdo e pai) responde 200 com a página atual, sem gravar e sem checar a versão: salvar uma página intocada não deve causar 409 em quem a edita ao mesmo tempo.
+- O cliente precisa reenviar a versão (vem em toda leitura de página e de espaço).
+- Um PATCH que não muda nada (mesmo título, conteúdo e pai; no espaço, mesmo nome e descrição) responde 200 com o registro atual, sem gravar e sem checar a versão: salvar uma página intocada não deve causar 409 em quem a edita ao mesmo tempo.
 - Não há merge automático: em conflito, a pessoa compara com a versão atual e decide se salva por cima.
 
 ## Quando eu mudaria de ideia
