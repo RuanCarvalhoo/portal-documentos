@@ -18,21 +18,24 @@ export class ApiError extends Error {
   }
 }
 
-interface RequestOptions {
+export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
   token?: string | null;
   /** Cancela a requisição depois deste tempo (ms) */
   timeoutMs?: number;
+  /** Cabeçalhos extras (o servidor do Next usa para repassar o IP do cliente) */
+  headers?: Record<string, string>;
 }
 
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, token, timeoutMs } = options;
+  const { method = 'GET', body, token, timeoutMs, headers } = options;
   let response: Response;
   try {
     response = await fetch(baseUrl() + path, {
       method,
       headers: {
+        ...headers,
         ...(body !== undefined && { 'Content-Type': 'application/json' }),
         ...(token && { Authorization: `Bearer ${token}` }),
       },

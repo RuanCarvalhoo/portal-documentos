@@ -2,10 +2,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Pager } from '@/components/pager';
-import { ApiError, apiFetch } from '@/lib/api';
+import { ApiError } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
 import { highlightParts } from '@/lib/highlight';
 import { pageParam, totalPages as countPages } from '@/lib/pagination';
+import { serverFetch } from '@/lib/server-api';
 import type { Paginated, SearchResult } from '@/lib/types';
 
 const PAGE_SIZE = 10;
@@ -25,7 +26,7 @@ export default async function SearchPage({ searchParams }: PageProps<'/search'>)
   if (q) {
     try {
       const query = new URLSearchParams({ q, page: String(page), limit: String(PAGE_SIZE) });
-      results = await apiFetch<Paginated<SearchResult>>(`/search?${query}`);
+      results = await serverFetch<Paginated<SearchResult>>(`/search?${query}`);
     } catch (error) {
       // 400 (termo curto/sem letras), 429 (muitas buscas): a mensagem da API orienta a pessoa
       errors = error instanceof ApiError ? error.messages : ['Não foi possível buscar agora.'];
