@@ -21,6 +21,7 @@ import {
 import { AuthGuard, type AuthenticatedUser } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ParseIdPipe } from '../common/parse-id.pipe';
+import { WriteThrottle } from '../common/throttle';
 import { CreatePageDto } from './dto/create-page.dto';
 import { NavigationSpaceDto, PageDto } from './dto/page.dto';
 import { UpdatePageDto } from './dto/update-page.dto';
@@ -42,6 +43,7 @@ export class PagesController {
   /** Cria uma página no espaço, na raiz ou sob uma página pai */
   @Post('spaces/:spaceId/pages')
   @UseGuards(AuthGuard)
+  @WriteThrottle()
   @ApiBearerAuth()
   @ApiBadRequestResponse({ description: 'Corpo inválido ou página pai de outro espaço' })
   @ApiNotFoundResponse({ description: 'Espaço não encontrado' })
@@ -65,6 +67,7 @@ export class PagesController {
   /** Edita título, conteúdo e/ou página pai, informando a versão lida */
   @Patch('pages/:id')
   @UseGuards(AuthGuard)
+  @WriteThrottle()
   @ApiBearerAuth()
   @ApiBadRequestResponse({ description: 'Corpo inválido, pai inválido ou ciclo na hierarquia' })
   @ApiNotFoundResponse({ description: 'Página não encontrada' })
@@ -82,6 +85,7 @@ export class PagesController {
   @Delete('pages/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AuthGuard)
+  @WriteThrottle()
   @ApiBearerAuth()
   @ApiBadRequestResponse({ description: 'Identificador inválido' })
   @ApiNotFoundResponse({ description: 'Página não encontrada' })

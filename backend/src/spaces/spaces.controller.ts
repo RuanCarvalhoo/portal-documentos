@@ -21,6 +21,7 @@ import {
 import { AuthGuard } from '../auth/auth.guard';
 import { PaginationQueryDto } from '../common/pagination.dto';
 import { ParseIdPipe } from '../common/parse-id.pipe';
+import { WriteThrottle } from '../common/throttle';
 import { CreateSpaceDto } from './dto/create-space.dto';
 import { PaginatedSpacesDto, SpaceDto } from './dto/space.dto';
 import { UpdateSpaceDto } from './dto/update-space.dto';
@@ -49,6 +50,7 @@ export class SpacesController {
   /** Cria um espaço */
   @Post()
   @UseGuards(AuthGuard)
+  @WriteThrottle()
   @ApiBearerAuth()
   @ApiBadRequestResponse({ description: 'Corpo inválido' })
   @ApiUnauthorizedResponse({ description: 'Token ausente, inválido ou expirado' })
@@ -59,6 +61,7 @@ export class SpacesController {
   /** Edita nome e/ou descrição de um espaço */
   @Patch(':id')
   @UseGuards(AuthGuard)
+  @WriteThrottle()
   @ApiBearerAuth()
   @ApiBadRequestResponse({ description: 'Identificador ou corpo inválido' })
   @ApiNotFoundResponse({ description: 'Espaço não encontrado' })
@@ -71,6 +74,7 @@ export class SpacesController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AuthGuard)
+  @WriteThrottle()
   @ApiBearerAuth()
   @ApiBadRequestResponse({ description: 'Identificador inválido' })
   @ApiNotFoundResponse({ description: 'Espaço não encontrado' })

@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
+import type { Request } from 'express';
 import { AuthModule } from './auth/auth.module';
+import { clientIpOf } from './common/client-ip';
 import { PagesModule } from './pages/pages.module';
 import { SearchModule } from './search/search.module';
 import { SpacesModule } from './spaces/spaces.module';
@@ -14,10 +16,16 @@ import { PrismaModule } from './prisma/prisma.module';
     // validate: ambiente inválido derruba o boot em vez de falhar na primeira requisição
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     // Configuração única do rate limit; cada rota escolhe aplicar com @UseGuards(ThrottlerGuard).
-    // Anti força-bruta em login/cadastro: 10 tentativas por minuto por IP e rota.
-    ThrottlerModule.forRoot({
-      throttlers: [{ ttl: 60_000, limit: 10 }],
-      errorMessage: 'Muitas tentativas. Aguarde um minuto e tente novamente.',
+    // Padrão anti força-bruta em login/cadastro: 10 tentativas por minuto por cliente e rota.
+    // Cliente = IP da conexão, ou o IP repassado pelo frontend com o segredo compartilhado.
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [{ ttl: 60_000, limit: 10 }],
+        errorMessage: 'Muitas tentativas. Aguarde um minuto e tente novamente.',
+        // O throttler entrega a requisição como Record; na plataforma Express ela é a Request
+        getTracker: (request) => clientIpOf(request as Request, config.get<string>('INTERNAL_API_SECRET')),
+      }),
     }),
     PrismaModule,
     HealthModule,
