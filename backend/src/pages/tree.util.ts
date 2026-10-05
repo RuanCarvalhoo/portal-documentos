@@ -52,3 +52,45 @@ export function isSelfOrDescendant(
   }
   return false;
 }
+
+/**
+ * Teto de níveis da árvore de páginas. Documentação raramente passa de 4 ou 5 níveis; o teto
+ * existe porque uma cadeia de milhares de páginas aninhadas estoura a pilha ao serializar
+ * /navigation (e a barra lateral de todo o portal).
+ */
+export const MAX_TREE_DEPTH = 10;
+
+/** Nível da página na árvore (raiz = 1), subindo a cadeia de pais. */
+export function depthOf(pageId: string, parentById: ReadonlyMap<string, string | null>): number {
+  const visited = new Set<string>();
+  let current: string | null | undefined = pageId;
+  // Dados corrompidos com laço: para em vez de rodar para sempre
+  while (current && !visited.has(current)) {
+    visited.add(current);
+    current = parentById.get(current);
+  }
+  return visited.size;
+}
+
+/** Quantos níveis a página e suas descendentes ocupam (página sem filhas = 1). */
+export function subtreeHeight(pageId: string, parentById: ReadonlyMap<string, string | null>): number {
+  const childrenById = new Map<string, string[]>();
+  for (const [id, parentId] of parentById) {
+    // Map local da função: push em vez de copiar o array a cada filha (que seria O(n²))
+    const siblings = parentId ? childrenById.get(parentId) : undefined;
+    if (siblings) {
+      siblings.push(id);
+    } else if (parentId) {
+      childrenById.set(parentId, [id]);
+    }
+  }
+  const visited = new Set<string>();
+  let level = [pageId];
+  let height = 0;
+  while (level.length > 0) {
+    height += 1;
+    level.forEach((id) => visited.add(id));
+    level = level.flatMap((id) => childrenById.get(id) ?? []).filter((id) => !visited.has(id));
+  }
+  return height;
+}

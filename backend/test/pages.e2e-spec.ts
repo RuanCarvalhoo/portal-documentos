@@ -228,4 +228,31 @@ describe('Pages (e2e)', () => {
 
     await http().get(`/pages/${childId}`).expect(404);
   });
+
+  it('limits the page tree to 10 levels, on create and on move', async () => {
+    const deepSpaceId = (await http().post('/spaces').set(auth).send({ name: 'E2E Profundidade' })).body.id;
+    const createPage = (title: string, parentId?: string) =>
+      http().post(`/spaces/${deepSpaceId}/pages`).set(auth).send({ title, parentId });
+    const levels: string[] = [];
+    for (let level = 1; level <= 10; level += 1) {
+      levels.push((await createPage(`E2E Nível ${level}`, levels.at(-1)).expect(201)).body.id);
+    }
+
+    const tooDeep = await createPage('E2E Nível 11', levels.at(-1)).expect(400);
+    expect(tooDeep.body.message).toBe('A hierarquia de páginas pode ter no máximo 10 níveis');
+
+    // Uma raiz com uma filha ocupa 2 níveis: cabe sob o nível 8, não sob o 9
+    const movedRoot = (await createPage('E2E Raiz movida').expect(201)).body;
+    await createPage('E2E Filha da raiz movida', movedRoot.id).expect(201);
+    await http()
+      .patch(`/pages/${movedRoot.id}`)
+      .set(auth)
+      .send({ parentId: levels[8], version: movedRoot.version })
+      .expect(400);
+    await http()
+      .patch(`/pages/${movedRoot.id}`)
+      .set(auth)
+      .send({ parentId: levels[7], version: movedRoot.version })
+      .expect(200);
+  });
 });

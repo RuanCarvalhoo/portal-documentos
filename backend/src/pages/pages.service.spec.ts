@@ -2,10 +2,14 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PagesService } from './pages.service';
+import { MAX_TREE_DEPTH } from './tree.util';
 
 const USER = 'u1';
 const notMatched = () =>
   new Prisma.PrismaClientKnownRequestError('no match', { code: 'P2025', clientVersion: 't' });
+// p1 ─ p2 ─ … ─ pN: cada página é filha da anterior (pN fica no nível N)
+const chain = (levels: number) =>
+  Array.from({ length: levels }, (_, i) => ({ id: `p${i + 1}`, parentId: i === 0 ? null : `p${i}` }));
 
 describe('PagesService', () => {
   const prisma = {
@@ -44,12 +48,26 @@ describe('PagesService', () => {
 
     it('rejects a parent page from another space', async () => {
       prisma.$queryRaw.mockResolvedValue([{ id: 's1' }]);
-      prisma.page.findUnique.mockResolvedValue({ spaceId: 'outro' });
+      // A hierarquia carregada é só a do espaço s1, onde p1 não existe
+      prisma.page.findMany.mockResolvedValue([]);
 
       await expect(service.create('s1', { title: 'Nova', parentId: 'p1' }, USER)).rejects.toBeInstanceOf(
         BadRequestException,
       );
       expect(prisma.page.create).not.toHaveBeenCalled();
+    });
+
+    it('allows the last level of the tree but not one more', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 's1' }]);
+      prisma.page.findMany.mockResolvedValue(chain(MAX_TREE_DEPTH));
+      prisma.page.aggregate.mockResolvedValue({ _max: { position: null } });
+      prisma.page.create.mockResolvedValue({ id: 'new' });
+
+      await expect(service.create('s1', { title: 'Funda demais', parentId: 'p10' }, USER)).rejects.toThrow(
+        new BadRequestException('A hierarquia de páginas pode ter no máximo 10 níveis'),
+      );
+      await service.create('s1', { title: 'No último nível', parentId: 'p9' }, USER);
+      expect(prisma.page.create).toHaveBeenCalledTimes(1);
     });
 
     it('locks the space, records the author and appends after the siblings', async () => {
@@ -139,6 +157,25 @@ describe('PagesService', () => {
         new BadRequestException('Uma página não pode ser movida para dentro dela mesma ou de uma subpágina'),
       );
       expect(prisma.page.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses a move that would push the moved subtree past the maximum depth', async () => {
+      prisma.page.findUnique.mockResolvedValue(current);
+      prisma.$queryRaw.mockResolvedValue([{ id: 's1' }]);
+      prisma.page.aggregate.mockResolvedValue({ _max: { position: null } });
+      prisma.page.update.mockResolvedValue({ id: 'a' });
+      // "a" tem uma filha (ocupa 2 níveis); p8 está no nível 8 e p9 no nível 9
+      prisma.page.findMany.mockResolvedValue([
+        ...chain(9),
+        { id: 'a', parentId: null },
+        { id: 'b', parentId: 'a' },
+      ]);
+
+      await expect(service.update('a', { parentId: 'p9', version: 1 }, USER)).rejects.toThrow(
+        new BadRequestException('A hierarquia de páginas pode ter no máximo 10 níveis'),
+      );
+      await service.update('a', { parentId: 'p8', version: 1 }, USER);
+      expect(prisma.page.update).toHaveBeenCalledTimes(1);
     });
 
     it('rejects an update that only sends the version', async () => {

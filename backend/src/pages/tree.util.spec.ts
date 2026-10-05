@@ -1,4 +1,4 @@
-import { buildTree, isSelfOrDescendant } from './tree.util';
+import { buildTree, depthOf, isSelfOrDescendant, subtreeHeight } from './tree.util';
 
 const row = (id: string, parentId: string | null, title = id) => ({ id, title, parentId });
 
@@ -62,5 +62,56 @@ describe('isSelfOrDescendant', () => {
     ]);
 
     expect(isSelfOrDescendant('z', 'x', looped)).toBe(false);
+  });
+});
+
+// a ─ b ─ c ─ d      x (raiz sozinha)
+//   └ e
+const hierarchy = new Map<string, string | null>([
+  ['a', null],
+  ['b', 'a'],
+  ['c', 'b'],
+  ['d', 'c'],
+  ['e', 'a'],
+  ['x', null],
+]);
+
+describe('depthOf', () => {
+  it('counts the levels from the root down to the page (root = 1)', () => {
+    expect(depthOf('a', hierarchy)).toBe(1);
+    expect(depthOf('e', hierarchy)).toBe(2);
+    expect(depthOf('d', hierarchy)).toBe(4);
+  });
+
+  it('stops on corrupted data with a loop instead of running forever', () => {
+    expect(
+      depthOf(
+        'p',
+        new Map([
+          ['p', 'q'],
+          ['q', 'p'],
+        ]),
+      ),
+    ).toBe(2);
+  });
+});
+
+describe('subtreeHeight', () => {
+  it('counts how many levels the page and its descendants take (leaf = 1)', () => {
+    expect(subtreeHeight('x', hierarchy)).toBe(1);
+    expect(subtreeHeight('c', hierarchy)).toBe(2);
+    expect(subtreeHeight('a', hierarchy)).toBe(4);
+  });
+
+  it('stops on corrupted data with a loop instead of running forever', () => {
+    expect(
+      subtreeHeight(
+        'p',
+        new Map([
+          ['p', 'q'],
+          ['q', 'p'],
+        ]),
+      ),
+    ).toBe(2);
   });
 });
