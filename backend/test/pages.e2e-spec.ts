@@ -255,6 +255,25 @@ describe('Pages (e2e)', () => {
     expect(edited.body.version).toBe(page.version + 1);
   });
 
+  it('applies the tree rules to ids sent in upper case too', async () => {
+    const ownSpaceId = (await http().post('/spaces').set(auth).send({ name: 'E2E Maiúsculas' })).body.id;
+    const createPage = (title: string, parentId?: string) =>
+      http().post(`/spaces/${ownSpaceId}/pages`).set(auth).send({ title, parentId });
+    const root = (await createPage('E2E Raiz').expect(201)).body;
+    // O Postgres aceita uuid em qualquer caixa; a API também, e normaliza para comparar
+    const child = (await createPage('E2E Filha', root.id.toUpperCase()).expect(201)).body;
+    expect(child.parentId).toBe(root.id);
+
+    const cycle = await http()
+      .patch(`/pages/${root.id.toUpperCase()}`)
+      .set(auth)
+      .send({ parentId: child.id.toUpperCase(), version: root.version })
+      .expect(400);
+    expect(cycle.body.message).toBe(
+      'Uma página não pode ser movida para dentro dela mesma ou de uma subpágina',
+    );
+  });
+
   it('limits the page tree to 10 levels, on create and on move', async () => {
     const deepSpaceId = (await http().post('/spaces').set(auth).send({ name: 'E2E Profundidade' })).body.id;
     const createPage = (title: string, parentId?: string) =>

@@ -1,7 +1,7 @@
 import { applyDecorators } from '@nestjs/common';
 import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, ValidateIf } from 'class-validator';
-import { trim } from '../../common/transforms';
+import { lowercase, trim } from '../../common/transforms';
 
 // Teto do Markdown em caracteres. O corpo da requisição ainda passa pelo limite do body parser
 // (100 KB): texto com muitos caracteres multibyte pode receber 413 antes de chegar aqui.
@@ -27,7 +27,11 @@ export const PageContentRules = (): PropertyDecorator =>
 
 // Aqui null é válido: significa "sem pai" (raiz do espaço)
 export const ParentIdRules = (): PropertyDecorator =>
-  applyDecorators(IsOptional(), IsUUID('all', { message: 'parentId deve ser um identificador válido' }));
+  applyDecorators(
+    IsOptional(),
+    IsUUID('all', { message: 'parentId deve ser um identificador válido' }),
+    Transform(lowercase),
+  );
 
 export class CreatePageDto {
   /** @example Introdução */
