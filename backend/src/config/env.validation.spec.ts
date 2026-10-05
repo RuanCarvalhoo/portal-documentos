@@ -60,3 +60,21 @@ describe('validateEnv JWT_SECRET', () => {
     expect(() => validateEnv({ ...base, JWT_SECRET: 'short' })).toThrow('JWT_SECRET');
   });
 });
+
+describe('validateEnv INTERNAL_API_SECRET', () => {
+  const base = { DATABASE_URL: 'postgresql://x', JWT_SECRET: SECRET };
+
+  it('is optional: without it the API ignores forwarded client IPs', () => {
+    expect(validateEnv(base).INTERNAL_API_SECRET).toBeUndefined();
+  });
+
+  it('accepts a secret of at least 32 characters', () => {
+    expect(validateEnv({ ...base, INTERNAL_API_SECRET: 'y'.repeat(32) }).INTERNAL_API_SECRET).toBe(
+      'y'.repeat(32),
+    );
+  });
+
+  it('rejects a short secret instead of silently trusting it', () => {
+    expect(() => validateEnv({ ...base, INTERNAL_API_SECRET: 'curto' })).toThrow('INTERNAL_API_SECRET');
+  });
+});
