@@ -18,13 +18,28 @@ const INTERNAL_ERROR: HttpError = {
   message: 'Erro interno do servidor',
 };
 
-// Mensagens que o próprio framework gera em inglês: o ValidationPipe (campo fora do DTO) e o
+// Mensagens que o próprio framework gera em inglês: o ValidationPipe (campo fora do DTO), o
 // Nest, que converte JSON inválido e "%" malformado na URL em BadRequestException com a
-// mensagem original. A API fala pt-BR com quem a usa.
-const FRAMEWORK_MESSAGES: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]> = [
-  [/^property (.+) should not exist$/, ([, field]) => `Campo não permitido: ${field}`],
-  [/^Failed to decode param /, () => 'Parâmetro inválido na URL'],
-  [/\bJSON\b/, () => 'O corpo da requisição não é um JSON válido'],
+// mensagem original, e o 404 de rota inexistente. A API fala pt-BR com quem a usa. Cada regra
+// vale só para o status com que o framework a usa (um 404 de "/x.JSON" não é JSON inválido).
+type Translation = readonly [
+  status: number,
+  pattern: RegExp,
+  toPortuguese: (match: RegExpExecArray) => string,
+];
+const FRAMEWORK_MESSAGES: readonly Translation[] = [
+  [
+    HttpStatus.BAD_REQUEST,
+    /^property (.+) should not exist$/,
+    ([, field]) => `Campo não permitido: ${field}`,
+  ],
+  [HttpStatus.BAD_REQUEST, /^Failed to decode param /, () => 'Parâmetro inválido na URL'],
+  [HttpStatus.BAD_REQUEST, /\bJSON\b/, () => 'O corpo da requisição não é um JSON válido'],
+  [
+    HttpStatus.NOT_FOUND,
+    /^Cannot ([A-Z]+) (.+)$/,
+    ([, method, path]) => `Rota não encontrada: ${method} ${path}`,
+  ],
 ];
 
 // Erros do body-parser chegam com um `type` estável; os demais ficam com a mensagem genérica
@@ -35,11 +50,10 @@ const BODY_PARSER_MESSAGES: Readonly<Record<string, string>> = {
 /** Traduz qualquer exceção para status + mensagem segura de expor ao cliente. */
 export function toHttpError(exception: unknown): HttpError {
   if (exception instanceof HttpException) {
+    const status = exception.getStatus();
     const message = messageOf(exception.getResponse()) ?? exception.message;
-    return {
-      status: exception.getStatus(),
-      message: Array.isArray(message) ? message.map(translate) : translate(message),
-    };
+    const localize = (text: string) => translate(status, text);
+    return { status, message: Array.isArray(message) ? message.map(localize) : localize(message) };
   }
   if (exception instanceof Prisma.PrismaClientKnownRequestError) {
     return { ...(PRISMA_ERRORS[exception.code] ?? INTERNAL_ERROR) };
@@ -51,9 +65,9 @@ export function toHttpError(exception: unknown): HttpError {
   return { ...INTERNAL_ERROR };
 }
 
-function translate(message: string): string {
-  for (const [pattern, toPortuguese] of FRAMEWORK_MESSAGES) {
-    const match = pattern.exec(message);
+function translate(status: number, message: string): string {
+  for (const [ruleStatus, pattern, toPortuguese] of FRAMEWORK_MESSAGES) {
+    const match = ruleStatus === status ? pattern.exec(message) : null;
     if (match) {
       return toPortuguese(match);
     }
