@@ -5,8 +5,17 @@ export interface UserSummary {
   name: string;
 }
 
+/** Perfil de acesso (ADR 012): conta nova é READER; EDITOR escreve; ADMIN também administra */
+export type Role = 'ADMIN' | 'EDITOR' | 'READER';
+
 export interface AuthUser extends UserSummary {
   email: string;
+  role: Role;
+}
+
+/** Conta na gestão de perfis (GET /users, só Admin) */
+export interface ManagedUser extends AuthUser {
+  createdAt: string;
 }
 
 export interface AuthResponse {

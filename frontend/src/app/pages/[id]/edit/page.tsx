@@ -25,7 +25,7 @@ export default async function EditPagePage({ params, searchParams }: PageProps<'
   return (
     <div>
       <h1 className="mb-8 font-serif text-4xl tracking-tight">Editar página</h1>
-      <RequireAuth>
+      <RequireAuth role="EDITOR">
         <PageForm spaceId={page.spaceId} parentOptions={parentOptions} page={page} restoring={restoring} />
       </RequireAuth>
     </div>

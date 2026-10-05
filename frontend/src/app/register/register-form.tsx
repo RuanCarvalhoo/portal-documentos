@@ -78,6 +78,10 @@ export function RegisterForm({ next }: { next: string }) {
         hint={`Mínimo de ${MIN_PASSWORD} caracteres`}
       />
       <SubmitButton pending={pending}>Criar conta</SubmitButton>
+      <p className="text-xs text-muted">
+        Contas novas entram com o perfil Leitor: leem tudo e passam a editar quando um administrador as
+        promove.
+      </p>
     </form>
   );
 }

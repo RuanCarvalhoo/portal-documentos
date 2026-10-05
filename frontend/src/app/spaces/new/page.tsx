@@ -9,7 +9,7 @@ export default function NewSpacePage() {
     <div>
       <h1 className="font-serif text-4xl tracking-tight">Novo espaço</h1>
       <p className="mt-2 mb-8 text-muted">Um espaço agrupa páginas sobre um mesmo assunto.</p>
-      <RequireAuth>
+      <RequireAuth role="EDITOR">
         <SpaceForm />
       </RequireAuth>
     </div>

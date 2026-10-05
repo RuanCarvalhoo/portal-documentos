@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { type FormEvent } from 'react';
+import { hasRole, ROLE_LABELS } from '@/lib/permissions';
 import { confirmLeave } from '@/lib/unsaved';
 import { useAuth } from './auth-provider';
 import { CloseIcon, LogoIcon, MenuIcon, SearchIcon } from './icons';
@@ -107,8 +108,23 @@ function UserArea() {
   }
   return (
     <div className="flex shrink-0 items-center gap-2 text-sm">
+      {hasRole(user, 'ADMIN') && (
+        <Link
+          href="/admin/usuarios"
+          aria-current={pathname === '/admin/usuarios' ? 'page' : undefined}
+          className="hidden h-9 items-center rounded-md px-2 text-muted transition-colors hover:bg-hover hover:text-foreground aria-[current=page]:text-foreground lg:inline-flex"
+        >
+          Usuários
+        </Link>
+      )}
       <span className="hidden max-w-36 truncate text-muted sm:inline" title={user.email}>
         {user.name}
+      </span>
+      <span
+        title="Seu perfil de acesso"
+        className="hidden rounded-md bg-accent-bg px-1.5 py-0.5 text-xs text-accent-fg sm:inline"
+      >
+        {ROLE_LABELS[user.role]}
       </span>
       <button
         type="button"

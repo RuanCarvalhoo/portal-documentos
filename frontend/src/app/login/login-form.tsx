@@ -9,6 +9,13 @@ import { Field, SubmitButton } from '@/components/ui';
 import { errorMessages } from '@/lib/api';
 import { type FieldErrors, isEmail } from '@/lib/validation';
 
+// Criadas pelo seed (backend/prisma/seed.ts): uma conta de cada perfil para avaliar as permissões
+const DEMO_ACCOUNTS = [
+  { role: 'Admin', email: 'demo@example.com', password: 'demo1234' },
+  { role: 'Editor', email: 'editor@example.com', password: 'editor1234' },
+  { role: 'Leitor', email: 'leitor@example.com', password: 'leitor1234' },
+];
+
 export function LoginForm({ next }: { next: string }) {
   const { login, user, ready } = useAuth();
   const router = useRouter();
@@ -76,10 +83,16 @@ export function LoginForm({ next }: { next: string }) {
       />
       <Field label="Senha" name="password" type="password" autoComplete="current-password" error={errors.password} />
       <SubmitButton pending={pending}>Entrar</SubmitButton>
-      <p className="text-xs text-muted">
-        Ambiente de demonstração: <code className="font-mono">demo@example.com</code> ·{' '}
-        <code className="font-mono">demo1234</code>
-      </p>
+      <div className="text-xs text-muted">
+        <p>Contas de demonstração, uma por perfil:</p>
+        <ul className="mt-1 space-y-0.5">
+          {DEMO_ACCOUNTS.map(({ role, email, password }) => (
+            <li key={email}>
+              {role}: <code className="font-mono">{email}</code> · <code className="font-mono">{password}</code>
+            </li>
+          ))}
+        </ul>
+      </div>
     </form>
   );
 }

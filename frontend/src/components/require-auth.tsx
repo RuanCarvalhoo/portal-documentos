@@ -2,10 +2,18 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { hasRole, ROLE_LABELS } from '@/lib/permissions';
+import type { Role } from '@/lib/types';
 import { useAuth } from './auth-provider';
 
-/** Telas de escrita: só para quem está logado. A proteção real é a API (401). */
-export function RequireAuth({ children }: { children: React.ReactNode }) {
+interface GateProps {
+  children: React.ReactNode;
+  /** Perfil mínimo; sem ele, basta estar logado */
+  role?: Role;
+}
+
+/** Telas de escrita: só para quem está logado e tem o perfil. A proteção real é a API (401/403). */
+export function RequireAuth({ children, role = 'READER' }: GateProps) {
   const { user, ready } = useAuth();
   const pathname = usePathname();
 
@@ -25,11 +33,21 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
+  if (!hasRole(user, role)) {
+    return (
+      <div role="note" className="rounded-lg border border-border bg-surface p-6">
+        <p>
+          Seu perfil ({ROLE_LABELS[user.role]}) não permite esta ação. Ela exige o perfil{' '}
+          {ROLE_LABELS[role]}: peça acesso a um administrador.
+        </p>
+      </div>
+    );
+  }
   return children;
 }
 
-/** Ações de escrita (criar, editar, excluir) só aparecem para quem está logado. */
-export function AuthOnly({ children }: { children: React.ReactNode }) {
+/** Ações de escrita (criar, editar, excluir) só aparecem para quem tem o perfil. */
+export function AuthOnly({ children, role = 'READER' }: GateProps) {
   const { user } = useAuth();
-  return user ? children : null;
+  return hasRole(user, role) ? children : null;
 }

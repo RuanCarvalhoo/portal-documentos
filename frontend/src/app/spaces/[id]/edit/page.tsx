@@ -15,7 +15,7 @@ export default async function EditSpacePage({ params }: PageProps<'/spaces/[id]/
   return (
     <div>
       <h1 className="mb-8 font-serif text-4xl tracking-tight">Editar espaço</h1>
-      <RequireAuth>
+      <RequireAuth role="EDITOR">
         <SpaceForm space={space} />
       </RequireAuth>
     </div>

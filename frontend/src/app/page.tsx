@@ -36,7 +36,7 @@ export default async function HomePage({ searchParams }: PageProps<'/'>) {
 
       <div className="mt-14 flex items-end justify-between gap-4 border-b border-border pb-3">
         <h2 className="font-serif text-2xl tracking-tight">Espaços</h2>
-        <AuthOnly>
+        <AuthOnly role="EDITOR">
           <Link href="/spaces/new" className={secondaryButton}>
             <PlusIcon /> Novo espaço
           </Link>

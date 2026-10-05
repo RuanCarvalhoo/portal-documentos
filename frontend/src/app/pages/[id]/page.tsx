@@ -58,7 +58,7 @@ export default async function PageView({ params }: PageProps<'/pages/[id]'>) {
           <h1 className="font-serif text-4xl tracking-tight sm:text-5xl">{page.title}</h1>
           {/* Altura reservada: as ações só aparecem depois de confirmar a sessão (sem "pulo") */}
           <div className="min-h-9">
-            <AuthOnly>
+            <AuthOnly role="EDITOR">
               <div className="flex flex-wrap items-start gap-2">
                 <Link href={`/pages/${page.id}/edit`} className={primaryButton}>
                   Editar
