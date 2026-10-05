@@ -48,6 +48,8 @@ model Space {
   id          String   @id @default(uuid(7)) @db.Uuid
   name        String
   description String?
+  // Concorrência otimista, como nas páginas: o PATCH envia a versão lida; se não bater → 409
+  version     Int      @default(1)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 

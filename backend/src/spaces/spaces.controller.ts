@@ -10,7 +10,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiNotFoundResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiConflictResponse, ApiNotFoundResponse, ApiTags } from '@nestjs/swagger';
 import { Auth } from '../auth/auth.decorator';
 import { Role } from '../auth/roles';
 import { PaginationQueryDto } from '../common/pagination.dto';
@@ -56,6 +56,7 @@ export class SpacesController {
   @WriteThrottle()
   @ApiBadRequestResponse({ description: 'Identificador ou corpo inválido' })
   @ApiNotFoundResponse({ description: 'Espaço não encontrado' })
+  @ApiConflictResponse({ description: 'O espaço foi alterado por outra pessoa (versão desatualizada)' })
   update(@Param('id', ParseIdPipe) id: string, @Body() dto: UpdateSpaceDto): Promise<SpaceDto> {
     return this.spaces.update(id, dto);
   }

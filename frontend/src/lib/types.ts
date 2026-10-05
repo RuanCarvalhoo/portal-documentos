@@ -39,6 +39,7 @@ export interface Space {
   id: string;
   name: string;
   description: string | null;
+  version: number;
   createdAt: string;
   updatedAt: string;
 }

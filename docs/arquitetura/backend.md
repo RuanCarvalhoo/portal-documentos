@@ -47,7 +47,7 @@ Transversais: `common` (erros, paginação `{ data, meta }`, rate limit, IP do c
 ## Regras que dependem de transação
 
 - **Criar ou mover página** trava a linha do espaço (`SELECT … FOR UPDATE`). Assim, duas mudanças de estrutura no mesmo espaço entram em fila, e a checagem de ciclo e profundidade vê a árvore final.
-- **Editar página** é um único `UPDATE … WHERE id = :id AND version = :lida`. Se nenhuma linha casar, outra pessoa salvou antes e a resposta é 409 ([ADR 005](../adr/005-concorrencia-otimista.md)). O trigger `pages_save_version` copia o texto anterior na mesma transação ([ADR 007](../adr/007-historico-de-versoes.md)).
+- **Editar página ou espaço** é um único `UPDATE … WHERE id = :id AND version = :lida`. Se nenhuma linha casar, outra pessoa salvou antes e a resposta é 409 ([ADR 005](../adr/005-concorrencia-otimista.md)). O trigger `pages_save_version` copia o texto anterior na mesma transação ([ADR 007](../adr/007-historico-de-versoes.md)).
 - **Tags novas** entram com `INSERT … ON CONFLICT DO NOTHING` antes de ligar à página ([ADR 011](../adr/011-tags.md)).
 - **Trocar perfil** trava as contas Admin para contar quantas restam ([ADR 012](../adr/012-perfis-de-acesso.md)).
 

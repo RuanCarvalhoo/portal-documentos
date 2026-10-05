@@ -4,6 +4,8 @@ export class SpaceDto {
   id: string;
   name: string;
   description: string | null;
+  /** Versão atual, enviada de volta no PATCH (concorrência otimista) */
+  version: number;
   createdAt: Date;
   updatedAt: Date;
 }
