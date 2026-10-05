@@ -125,6 +125,16 @@ describe('PagesService', () => {
       expect(prisma.$queryRaw).not.toHaveBeenCalled();
     });
 
+    it('keeps the version when the update changes nothing', async () => {
+      const page = { ...current, title: 'Título', content: 'Texto', version: 4 };
+      prisma.page.findUnique.mockResolvedValue(page);
+
+      await expect(
+        service.update('a', { title: 'Título', content: 'Texto', parentId: null, version: 2 }, USER),
+      ).resolves.toBe(page);
+      expect(prisma.page.update).not.toHaveBeenCalled();
+    });
+
     it('answers 409 when someone else saved a newer version first', async () => {
       prisma.page.findUnique.mockResolvedValue(current);
       prisma.page.update.mockRejectedValue(notMatched());

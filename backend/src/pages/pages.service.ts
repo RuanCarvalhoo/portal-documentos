@@ -76,10 +76,18 @@ export class PagesService {
     }
     const current = await this.prisma.page.findUnique({
       where: { id },
-      select: { spaceId: true, parentId: true },
+      select: { spaceId: true, parentId: true, title: true, content: true },
     });
     if (!current) {
       throw new NotFoundException(NOT_FOUND);
+    }
+    // Salvar sem mudar nada não gera versão nova: senão quem edita a página ao mesmo tempo
+    // levaria um 409 por uma "alteração" que não existe
+    const changed = (Object.keys(changes) as (keyof typeof changes)[]).some(
+      (field) => changes[field] !== undefined && changes[field] !== current[field],
+    );
+    if (!changed) {
+      return this.findOne(id);
     }
     const moving = changes.parentId !== undefined && changes.parentId !== current.parentId;
 

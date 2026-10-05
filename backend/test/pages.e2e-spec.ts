@@ -229,6 +229,32 @@ describe('Pages (e2e)', () => {
     await http().get(`/pages/${childId}`).expect(404);
   });
 
+  it('keeps the version when a save changes nothing, so a concurrent editor gets no 409', async () => {
+    const ownSpaceId = (await http().post('/spaces').set(auth).send({ name: 'E2E Sem mudança' })).body.id;
+    const page = (
+      await http()
+        .post(`/spaces/${ownSpaceId}/pages`)
+        .set(auth)
+        .send({ title: 'E2E Intacta', content: 'Texto' })
+        .expect(201)
+    ).body;
+
+    const same = await http()
+      .patch(`/pages/${page.id}`)
+      .set(editorAuth)
+      .send({ title: 'E2E Intacta', content: 'Texto', version: page.version })
+      .expect(200);
+    expect(same.body.version).toBe(page.version);
+    expect(same.body.updatedBy.id).toBe(page.updatedBy.id);
+
+    const edited = await http()
+      .patch(`/pages/${page.id}`)
+      .set(auth)
+      .send({ content: 'Texto novo', version: page.version })
+      .expect(200);
+    expect(edited.body.version).toBe(page.version + 1);
+  });
+
   it('limits the page tree to 10 levels, on create and on move', async () => {
     const deepSpaceId = (await http().post('/spaces').set(auth).send({ name: 'E2E Profundidade' })).body.id;
     const createPage = (title: string, parentId?: string) =>
