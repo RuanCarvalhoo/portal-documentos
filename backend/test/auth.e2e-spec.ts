@@ -33,7 +33,8 @@ describe('Auth (e2e)', () => {
       .send({ name: 'Pessoa E2E', email: `  ${email.toUpperCase()} `, password })
       .expect(201);
 
-    expect(res.body.user).toEqual({ id: expect.any(String), name: 'Pessoa E2E', email });
+    // Conta nova entra como Leitor: editar exige que um Admin a promova
+    expect(res.body.user).toEqual({ id: expect.any(String), name: 'Pessoa E2E', email, role: 'READER' });
     expect(res.body.accessToken).toEqual(expect.any(String));
     expect(JSON.stringify(res.body)).not.toContain('passwordHash');
   });
@@ -103,7 +104,7 @@ describe('Auth (e2e)', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(res.body).toEqual({ id: expect.any(String), name: 'Pessoa E2E', email });
+    expect(res.body).toEqual({ id: expect.any(String), name: 'Pessoa E2E', email, role: 'READER' });
   });
 
   it('throttles repeated login attempts with 429', async () => {

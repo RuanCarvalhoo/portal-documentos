@@ -1,9 +1,15 @@
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
+import type { PrismaService } from '../prisma/prisma.service';
 import { AuthGuard } from './auth.guard';
+import { Role } from './roles';
 
+const USER_ID = '01a10ce0-bfc3-759d-ae70-030a8bafc793';
 const jwt = new JwtService({ secret: 'test-secret-with-at-least-32-characters' });
-const guard = new AuthGuard(jwt);
+const prisma = { user: { findUnique: jest.fn() } };
+const reflector = { getAllAndOverride: jest.fn() };
+const guard = new AuthGuard(jwt, prisma as unknown as PrismaService, reflector as unknown as Reflector);
 
 function contextWith(authorization?: string) {
   const request: { headers: Record<string, string>; user?: unknown } = {
@@ -11,9 +17,17 @@ function contextWith(authorization?: string) {
   };
   const context = {
     switchToHttp: () => ({ getRequest: () => request }),
+    getHandler: () => undefined,
+    getClass: () => undefined,
   } as unknown as ExecutionContext;
   return { context, request };
 }
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  prisma.user.findUnique.mockResolvedValue({ id: USER_ID, role: Role.EDITOR });
+  reflector.getAllAndOverride.mockReturnValue(undefined);
+});
 
 describe('AuthGuard', () => {
   it('rejects requests without a token', async () => {
@@ -61,15 +75,60 @@ describe('AuthGuard', () => {
   });
 
   it('accepts the scheme in any case', async () => {
-    const { context } = contextWith(`bearer ${jwt.sign({ sub: 'u1' })}`);
+    const { context } = contextWith(`bearer ${jwt.sign({ sub: USER_ID })}`);
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
   });
 
-  it('attaches the user id from a valid token', async () => {
-    const { context, request } = contextWith(`Bearer ${jwt.sign({ sub: 'u1' })}`);
+  it('attaches the user with the current role read from the database', async () => {
+    const { context, request } = contextWith(`Bearer ${jwt.sign({ sub: USER_ID })}`);
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
-    expect(request.user).toEqual({ id: 'u1' });
+    expect(request.user).toEqual({ id: USER_ID, role: Role.EDITOR });
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      where: { id: USER_ID },
+      select: { id: true, role: true },
+    });
+  });
+
+  it('rejects a valid token whose account no longer exists', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await expect(
+      guard.canActivate(contextWith(`Bearer ${jwt.sign({ sub: USER_ID })}`).context),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('rejects a sub that is not a uuid without querying the database', async () => {
+    await expect(
+      guard.canActivate(contextWith(`Bearer ${jwt.sign({ sub: 'u1' })}`).context),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthGuard roles', () => {
+  const tokenOf = () => `Bearer ${jwt.sign({ sub: USER_ID })}`;
+
+  it('answers 403 when the role is below the minimum of the route', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: USER_ID, role: Role.READER });
+    reflector.getAllAndOverride.mockReturnValue(Role.EDITOR);
+
+    await expect(guard.canActivate(contextWith(tokenOf()).context)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
+  it('lets a higher role through', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: USER_ID, role: Role.ADMIN });
+    reflector.getAllAndOverride.mockReturnValue(Role.EDITOR);
+
+    await expect(guard.canActivate(contextWith(tokenOf()).context)).resolves.toBe(true);
+  });
+
+  it('only requires a login when the route sets no minimum', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: USER_ID, role: Role.READER });
+
+    await expect(guard.canActivate(contextWith(tokenOf()).context)).resolves.toBe(true);
   });
 });

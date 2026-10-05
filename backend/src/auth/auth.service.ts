@@ -13,7 +13,7 @@ const BCRYPT_ROUNDS = 10;
 // resposta não revele quais e-mails estão cadastrados
 const DUMMY_HASH = hashSync('senha-ficticia-para-tempo-constante', BCRYPT_ROUNDS);
 // select explícito em toda query de usuário: o hash da senha nunca sai do banco por acidente
-const PUBLIC_USER = { id: true, name: true, email: true } as const;
+const PUBLIC_USER = { id: true, name: true, email: true, role: true } as const;
 
 @Injectable()
 export class AuthService {
@@ -52,7 +52,9 @@ export class AuthService {
       // Mesma mensagem nos dois casos: não confirma se o e-mail existe
       throw new UnauthorizedException('Credenciais inválidas');
     }
-    return this.issueToken({ id: user.id, name: user.name, email: user.email });
+    // O hash fica só aqui dentro: o resto vai na resposta
+    const { passwordHash: _hash, ...profile } = user;
+    return this.issueToken(profile);
   }
 
   async me(userId: string): Promise<AuthUserDto> {

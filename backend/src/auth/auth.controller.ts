@@ -1,13 +1,13 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import {
-  ApiBearerAuth,
   ApiConflictResponse,
   ApiTags,
   ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
-import { AuthGuard, type AuthenticatedUser } from './auth.guard';
+import { Auth } from './auth.decorator';
+import { type AuthenticatedUser } from './auth.guard';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './current-user.decorator';
 import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
@@ -19,7 +19,7 @@ import { RegisterDto } from './dto/register.dto';
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  /** Cria uma conta e já devolve o token de acesso */
+  /** Cria uma conta (perfil Leitor) e já devolve o token de acesso */
   @Post('register')
   @UseGuards(ThrottlerGuard)
   @ApiConflictResponse({ description: 'E-mail já cadastrado' })
@@ -40,9 +40,7 @@ export class AuthController {
 
   /** Perfil do usuário dono do token */
   @Get('me')
-  @UseGuards(AuthGuard)
-  @ApiBearerAuth()
-  @ApiUnauthorizedResponse({ description: 'Token ausente, inválido ou expirado' })
+  @Auth()
   me(@CurrentUser() user: AuthenticatedUser): Promise<AuthUserDto> {
     return this.auth.me(user.id);
   }
