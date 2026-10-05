@@ -20,7 +20,7 @@ describe('Uploads (e2e)', () => {
   // Bytes novos a cada execução: o sha256 não colide com imagens que já estejam no banco
   const png = Buffer.concat([PNG_SIGNATURE, randomBytes(256)]);
   const http = () => request(app.getHttpServer());
-  const upload = (auth: object, file: Buffer, name = 'diagrama.png', field = 'file') =>
+  const upload = (auth: Record<string, string>, file: Buffer, name = 'diagrama.png', field = 'file') =>
     http().post('/uploads').set(auth).attach(field, file, name);
 
   beforeAll(async () => {
