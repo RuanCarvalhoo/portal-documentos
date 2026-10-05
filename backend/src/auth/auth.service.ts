@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { compare, hash, hashSync } from 'bcryptjs';
 import { Prisma } from '../generated/prisma/client';
@@ -17,6 +17,8 @@ const PUBLIC_USER = { id: true, name: true, email: true } as const;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
@@ -29,6 +31,8 @@ export class AuthService {
         data: { name: dto.name, email: dto.email, passwordHash },
         select: PUBLIC_USER,
       });
+      // Sem e-mail no log (dado pessoal): o id basta para cruzar com o banco
+      this.logger.log({ event: 'user.registered', userId: user.id }, 'Conta criada');
       return this.issueToken(user);
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {

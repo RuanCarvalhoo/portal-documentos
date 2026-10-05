@@ -68,3 +68,17 @@ describe('AllExceptionsFilter', () => {
     expect(response.status).not.toHaveBeenCalled();
   });
 });
+
+describe('AllExceptionsFilter request id', () => {
+  it('includes the request id of the logs in the error envelope', () => {
+    const response = { headersSent: false, status: jest.fn().mockReturnThis(), json: jest.fn() };
+    const request = { method: 'GET', url: '/spaces/x', path: '/spaces/x', id: 'req-1' };
+    const host = {
+      switchToHttp: () => ({ getRequest: () => request, getResponse: () => response }),
+    } as unknown as ArgumentsHost;
+
+    new AllExceptionsFilter().catch(new NotFoundException('Espaço não encontrado'), host);
+
+    expect(response.json).toHaveBeenCalledWith(expect.objectContaining({ requestId: 'req-1' }));
+  });
+});

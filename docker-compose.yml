@@ -34,6 +34,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-only-jwt-secret-change-me-0123456789}
       # Compartilhado com o frontend: prova que é ele repassando o IP do cliente ao rate limit
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-dev-only-proxy-secret-change-me-0123456789}
+      # Logs em JSON, uma linha por evento, com requestId (docker compose logs backend)
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
       # Só em 127.0.0.1: com o segredo JWT padrão, a API não deve ficar aberta para a rede local
       - "127.0.0.1:3001:3001"

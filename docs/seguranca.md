@@ -8,7 +8,8 @@ Resumo no [README](../README.md#segurança). Aqui ficam os detalhes, as premissa
 - Ids validados como UUID antes de chegar ao banco e **normalizados para minúsculas** (as checagens de ciclo e de profundidade comparam ids como texto).
 - Limites em todos os textos (título 200, conteúdo 50 mil caracteres, nome do espaço 100, descrição 500) e no corpo da requisição (100 KB → 413).
 - Texto com byte NUL (`\u0000`, que o Postgres não aceita) responde 400, não 500.
-- O filtro global de erros responde sempre `{ statusCode, error, message, path, timestamp }`, nunca com stack trace; erros inesperados vão para o log do servidor só com método e caminho (sem query string, que pode ter termos de busca).
+- O filtro global de erros responde sempre `{ statusCode, error, message, path, requestId, timestamp }`, nunca com stack trace. Erros inesperados vão para o log do servidor com método e caminho, sem query string (que pode ter termos de busca).
+- Logs em JSON sem headers (token, segredo do proxy), sem query string, sem corpo e sem e-mail ([ADR 009](adr/009-logs-estruturados.md)). O `x-request-id` recebido só é aceito com formato seguro (`[A-Za-z0-9_-]`, até 64 caracteres).
 
 ## Autenticação e senhas
 

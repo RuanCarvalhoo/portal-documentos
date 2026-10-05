@@ -35,6 +35,22 @@ describe('App foundation (e2e)', () => {
     expect(Number.isNaN(Date.parse(res.body.timestamp))).toBe(false);
   });
 
+  it('tags every response with a request id and repeats it in the error envelope', async () => {
+    const generated = await request(app.getHttpServer()).get('/health').expect(200);
+    expect(generated.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+
+    // O proxy do frontend envia o id dele: o mesmo id liga o log do Next ao da API
+    const forwarded = await request(app.getHttpServer())
+      .get('/nao-existe')
+      .set('x-request-id', 'e2e-req-1')
+      .expect(404);
+    expect(forwarded.headers['x-request-id']).toBe('e2e-req-1');
+    expect(forwarded.body.requestId).toBe('e2e-req-1');
+
+    const unsafe = await request(app.getHttpServer()).get('/health').set('x-request-id', 'a b c').expect(200);
+    expect(unsafe.headers['x-request-id']).not.toBe('a b c');
+  });
+
   it('sends security headers and allows only the web origin', async () => {
     const res = await request(app.getHttpServer())
       .get('/health')

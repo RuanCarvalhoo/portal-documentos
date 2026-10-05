@@ -5,7 +5,14 @@ export interface Env {
   JWT_SECRET: string;
   /** Segredo compartilhado com o frontend para repassar o IP do cliente (opcional) */
   INTERNAL_API_SECRET?: string;
+  /** Nível mínimo dos logs (pino) */
+  LOG_LEVEL: LogLevel;
+  /** Logs legíveis no terminal (pino-pretty), só para desenvolvimento */
+  LOG_PRETTY: boolean;
 }
+
+export const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
+export type LogLevel = (typeof LOG_LEVELS)[number];
 
 const MAX_PORT = 65_535;
 const MIN_SECRET_LENGTH = 32;
@@ -18,6 +25,8 @@ export function validateEnv(raw: Record<string, unknown>): Env & Record<string, 
     CORS_ORIGIN = 'http://localhost:3000',
     JWT_SECRET,
     INTERNAL_API_SECRET,
+    LOG_LEVEL = 'info',
+    LOG_PRETTY = 'false',
   } = raw;
 
   if (typeof DATABASE_URL !== 'string' || DATABASE_URL === '') {
@@ -34,7 +43,25 @@ export function validateEnv(raw: Record<string, unknown>): Env & Record<string, 
       INTERNAL_API_SECRET === undefined || INTERNAL_API_SECRET === ''
         ? undefined
         : parseSecret('INTERNAL_API_SECRET', INTERNAL_API_SECRET),
+    LOG_LEVEL: parseLogLevel(LOG_LEVEL),
+    LOG_PRETTY: parseBoolean('LOG_PRETTY', LOG_PRETTY),
   };
+}
+
+function parseLogLevel(value: unknown): LogLevel {
+  const text = String(value);
+  if (!(LOG_LEVELS as readonly string[]).includes(text)) {
+    throw new Error(`Variável de ambiente LOG_LEVEL inválida (use ${LOG_LEVELS.join(', ')}): ${text}`);
+  }
+  return text as LogLevel;
+}
+
+function parseBoolean(name: string, value: unknown): boolean {
+  const text = String(value);
+  if (text !== 'true' && text !== 'false') {
+    throw new Error(`Variável de ambiente ${name} inválida (use true ou false): ${text}`);
+  }
+  return text === 'true';
 }
 
 function parsePort(value: unknown): number {

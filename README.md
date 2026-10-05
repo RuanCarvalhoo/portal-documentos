@@ -51,6 +51,7 @@ Todas têm **padrões de desenvolvimento** no `docker-compose.yml`: nada precisa
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `postgres` / `postgres` / `portal-documentos` | Banco (montam o `DATABASE_URL` da API; evite `@ : / # ?` na senha) |
 | `JWT_SECRET` | segredo de desenvolvimento | Assinatura dos tokens (mínimo 32 caracteres, validado no boot) |
 | `INTERNAL_API_SECRET` | segredo de desenvolvimento | Opcional (se definido, mínimo 32 caracteres). Compartilhado entre frontend e API para repassar o IP do visitante ao rate limit ([detalhes](docs/seguranca.md#rate-limit)) |
+| `LOG_LEVEL` | `info` | Nível mínimo dos logs JSON da API (`fatal` … `trace`, `silent`) |
 | `CORS_ORIGIN` | `http://localhost:3000` | Origem liberada para clientes que chamem a API direto (o portal não depende dela: o navegador usa o proxy `/api`) |
 
 ---
@@ -80,7 +81,7 @@ Todas têm **padrões de desenvolvimento** no `docker-compose.yml`: nada precisa
 | Healthcheck dos serviços | **Entregue** — nos três serviços do compose |
 | Paginação nas listagens | **Entregue** — espaços, busca e histórico (`{ data, meta }`) |
 | Testes no front-end ou e2e | **Parcial** — 34 testes do frontend (lógica pura) e 61 e2e da API; sem e2e de navegador |
-| Logs estruturados | Não entregue |
+| Logs estruturados | **Entregue** — JSON (pino) com `requestId` ponta a ponta, log de acesso e eventos de negócio ([ADR 009](docs/adr/009-logs-estruturados.md)) |
 | Upload de imagens, tags, perfis de acesso | Não entregues (imagens por URL; qualquer usuário logado edita) |
 
 ---
@@ -122,6 +123,7 @@ docs/           ADRs, banco de dados, segurança
 | Concorrência | **Otimista** (`version`) | Uma edição não apaga outra, sem lock. [ADR 005](docs/adr/005-concorrencia-otimista.md) |
 | Cache | **Não cachear por enquanto** | A navegação já é barata por desenho; cache só com medição. [ADR 006](docs/adr/006-cache-da-navegacao.md) |
 | Histórico | **Trigger no Postgres** | Guarda o texto anterior atomicamente, em qualquer escrita. [ADR 007](docs/adr/007-historico-de-versoes.md) |
+| Logs | **pino** (`nestjs-pino`) | JSON em stdout, `requestId` do proxy até a API, sem headers nem query string. [ADR 009](docs/adr/009-logs-estruturados.md) |
 | Frontend | **Next.js App Router** | Leitura renderizada no servidor; formulários como Client Components. |
 | Navegador → API | **Proxy `/api` no Next** (Route Handler) | Mesma origem: sem CORS, sem URL da API no build, sem depender da porta 3001 no navegador. [ADR 008](docs/adr/008-proxy-da-api-no-frontend.md) |
 | Markdown | **react-markdown** + remark-gfm + rehype-slug + rehype-highlight | Sem HTML cru (seguro por padrão); o mesmo componente na leitura, no preview e no histórico. |

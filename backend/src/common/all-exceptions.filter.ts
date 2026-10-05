@@ -4,7 +4,7 @@ import { STATUS_CODES } from 'node:http';
 import { Prisma } from '../generated/prisma/client';
 import { toHttpError } from './http-error';
 
-/** Formato único de erro da API: { statusCode, error, message, path, timestamp }. */
+/** Formato único de erro da API: { statusCode, error, message, path, requestId, timestamp }. */
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
@@ -22,11 +22,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (response.headersSent) {
       return;
     }
+    // requestId: o mesmo das linhas de log desta requisição (quem reporta o erro informa o id)
+    const requestId = (request as Request & { id?: unknown }).id;
     response.status(status).json({
       statusCode: status,
       error: STATUS_CODES[status] ?? 'Error',
       message,
       path: request.url,
+      ...(typeof requestId === 'string' && { requestId }),
       timestamp: new Date().toISOString(),
     });
   }

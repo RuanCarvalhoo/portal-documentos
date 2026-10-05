@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { Logger as PinoLogger } from 'nestjs-pino';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -6,7 +7,9 @@ import { configureApp } from './app.setup';
 import type { Env } from './config/env.validation';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  // bufferLogs: as mensagens do boot esperam o logger JSON em vez de sair no formato do Nest
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(PinoLogger));
   configureApp(app);
   // SIGTERM (docker stop) dispara onModuleDestroy → fecha o pool do Prisma
   app.enableShutdownHooks();

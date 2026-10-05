@@ -78,3 +78,26 @@ describe('validateEnv INTERNAL_API_SECRET', () => {
     expect(() => validateEnv({ ...base, INTERNAL_API_SECRET: 'curto' })).toThrow('INTERNAL_API_SECRET');
   });
 });
+
+describe('validateEnv logging', () => {
+  const base = { DATABASE_URL: 'postgresql://x', JWT_SECRET: SECRET };
+
+  it('logs at info, as JSON, by default', () => {
+    expect(validateEnv(base)).toMatchObject({ LOG_LEVEL: 'info', LOG_PRETTY: false });
+  });
+
+  it('accepts any pino level, including silent for the tests', () => {
+    expect(validateEnv({ ...base, LOG_LEVEL: 'silent', LOG_PRETTY: 'true' })).toMatchObject({
+      LOG_LEVEL: 'silent',
+      LOG_PRETTY: true,
+    });
+  });
+
+  it.each([
+    ['LOG_LEVEL', 'verbose'],
+    ['LOG_LEVEL', 'INFO'],
+    ['LOG_PRETTY', 'yes'],
+  ])('rejects %s=%p', (name, value) => {
+    expect(() => validateEnv({ ...base, [name]: value })).toThrow(name);
+  });
+});
