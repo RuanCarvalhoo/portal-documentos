@@ -10,14 +10,14 @@ Portal web para times criarem e organizarem documentação em **páginas Markdow
 
 ## Avaliação rápida (5 minutos)
 
-1. `docker compose up --build` e espere os três serviços ficarem *healthy*.
+1. `docker compose up --build` e espere os três serviços ficarem *healthy* (`docker compose ps` em outro terminal). Se já rodou uma versão anterior do projeto, comece com `docker compose down -v`: o seed só cria o conteúdo de exemplo num banco sem espaços.
 2. Abra http://localhost:3000 e entre com **`demo@example.com` / `demo1234`**.
 3. **Arquitetura → Introdução:** Markdown renderizado, sumário, breadcrumb, "criada/editada por". Clique em **Histórico** → versão 1 → **Restaurar esta versão**.
 4. **Guias → Guia de Markdown:** títulos, listas, tabela, link, imagem por URL e código com destaque de sintaxe.
 5. Busque **markdown** no header.
 6. Crie uma subpágina, edite com a pré-visualização ao lado e exclua (há confirmação). Tente sair do editor com texto alterado.
-7. **Conflito:** abra a mesma página em duas abas no editor e salve nas duas — a segunda recebe o aviso com "ver a versão atual" e "salvar por cima".
-8. http://localhost:3001 abre o **Swagger** (botão *Authorize* para o token).
+7. **Conflito:** abra o editor da mesma página em duas abas, altere o texto nas duas e salve uma depois da outra — a segunda recebe o aviso com "ver a versão atual" e "salvar por cima".
+8. http://localhost:3001 abre o **Swagger**. Para as rotas protegidas: `POST /auth/login` com o usuário demo, copie o `accessToken` e cole em **Authorize**.
 
 ---
 
@@ -40,7 +40,7 @@ O primeiro build sem cache leva alguns minutos (cerca de 8 a 10 numa máquina co
 
 Para parar: `docker compose down`. Para recomeçar do zero (apaga o banco): `docker compose down -v`.
 
-**O que acontece no `up`:** o `db` só fica *healthy* quando o Postgres aceita conexões; o `backend` aplica as migrations, roda o **seed idempotente** (só cria o conteúdo de exemplo com o banco vazio) e fica *healthy* quando `/health` consulta o banco; o `frontend` sobe depois da API saudável.
+**O que acontece no `up`:** o `db` só fica *healthy* quando o Postgres aceita conexões; o `backend` aplica as migrations, roda o **seed idempotente** (só cria o conteúdo de exemplo quando não há nenhum espaço) e fica *healthy* quando `/health` consulta o banco; o `frontend` sobe depois da API saudável.
 
 ### Variáveis de ambiente
 
@@ -50,7 +50,7 @@ Todas têm **padrões de desenvolvimento** no `docker-compose.yml`: nada precisa
 |---|---|---|
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `postgres` / `postgres` / `portal-documentos` | Banco (montam o `DATABASE_URL` da API; evite `@ : / # ?` na senha) |
 | `JWT_SECRET` | segredo de desenvolvimento | Assinatura dos tokens (mínimo 32 caracteres, validado no boot) |
-| `INTERNAL_API_SECRET` | segredo de desenvolvimento | Compartilhado entre frontend e API para repassar o IP do visitante ao rate limit ([detalhes](docs/seguranca.md#rate-limit)) |
+| `INTERNAL_API_SECRET` | segredo de desenvolvimento | Opcional (se definido, mínimo 32 caracteres). Compartilhado entre frontend e API para repassar o IP do visitante ao rate limit ([detalhes](docs/seguranca.md#rate-limit)) |
 | `CORS_ORIGIN` | `http://localhost:3000` | Única origem autorizada a chamar a API |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:3001` | URL da API vista pelo navegador (embutida no build do frontend) |
 
@@ -119,7 +119,7 @@ docs/           ADRs, banco de dados, segurança
 |---|---|---|
 | Banco | **PostgreSQL 17** | Dados relacionais com integridade e cascade no banco; busca por substring indexada sem infraestrutura extra. [ADR 001](docs/adr/001-banco-de-dados-postgresql.md) |
 | ORM | **Prisma 7** | Schema declarativo, migrations versionadas, tipos gerados (driver adapter `pg`). |
-| Árvore | **Lista de adjacência** | Mover é um `UPDATE`; todas as árvores saem em 1 query, montadas em O(n). [ADR 002](docs/adr/002-modelagem-da-arvore.md) |
+| Árvore | **Lista de adjacência** | Mover é um `UPDATE`; a navegação inteira sai em 2 queries (espaços e páginas, sem o conteúdo), montada em O(n). [ADR 002](docs/adr/002-modelagem-da-arvore.md) |
 | Busca | **`ILIKE` + GIN `pg_trgm`** | Acha trechos de palavras em título e conteúdo, com índice. [ADR 003](docs/adr/003-busca-trigram.md) |
 | Autenticação | **JWT HS256** + guard próprio, **bcryptjs** | Sem sessão no servidor; bcryptjs é JS puro (sem toolchain nativa no Alpine). [ADR 004](docs/adr/004-autenticacao-jwt.md) |
 | Concorrência | **Otimista** (`version`) | Uma edição não apaga outra, sem lock. [ADR 005](docs/adr/005-concorrencia-otimista.md) |
@@ -176,7 +176,7 @@ cd backend                     # precisa do banco e do backend/.env (ver abaixo)
 npm ci && npm run db:deploy
 npm run lint && npm run typecheck && npm test && npm run test:e2e
 
-cd frontend
+cd ../frontend
 npm ci && npm run lint && npm test && npm run build
 ```
 
@@ -184,7 +184,7 @@ npm ci && npm run lint && npm test && npm run build
 
 ### Desenvolvimento sem Docker para as aplicações
 
-Requer **Node 24**.
+Requer **Node 24**. Se o stack completo estiver de pé, libere as portas antes: `docker compose stop backend frontend`.
 
 ```bash
 docker compose up -d db              # só o banco (porta 5433)
@@ -203,9 +203,9 @@ cd frontend && npm ci && npm run dev   # http://localhost:3000
 
 - Validação de toda entrada (campos fora do DTO viram 400), ids normalizados, limites de tamanho, erros sem stack trace.
 - Senhas com bcrypt; login sem revelar contas; JWT com algoritmo fixo e segredo validado no boot.
-- Rate limit por cliente em login, cadastro, busca e escritas — inclusive para leituras renderizadas pelo Next, que repassa o IP do visitante com um segredo compartilhado.
+- Rate limit por cliente em login, cadastro, busca e escritas. A busca é renderizada pelo Next, que repassa o IP do visitante com um segredo compartilhado (sem isso, todos dividiriam o mesmo limite).
 - Markdown sem HTML cru; redirect após login só para caminhos internos; headers de segurança na API e no frontend.
-- Portas só em `127.0.0.1`; containers sem root.
+- Portas só em `127.0.0.1`; API e frontend rodam sem root.
 
 Detalhes, premissas de implantação, trade-offs e a triagem do `npm audit`: [docs/seguranca.md](docs/seguranca.md).
 
@@ -224,7 +224,7 @@ Detalhes, premissas de implantação, trade-offs e a triagem do `npm audit`: [do
 
 ## Convenções
 
-Código, testes e mensagens de commit em inglês; interface, mensagens da API, comentários e documentação em português. Commits convencionais (`tipo(escopo): resumo`, com escopos `api`, `web`, `db`, `docker`, `deps` e `docs`) e uma branch por mudança, integrada por PR.
+Código, testes e mensagens de commit em inglês; interface, mensagens da API, comentários e documentação em português. Commits convencionais (`tipo(escopo): resumo`, com escopos como `api`, `web`, `db`, `docker` e `deps`) e uma branch por mudança, integrada por PR.
 
 ## Próximos passos
 

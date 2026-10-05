@@ -30,8 +30,9 @@ RETURNING ...
 - A checagem da versão e a gravação acontecem no mesmo `UPDATE`, então não há janela de corrida para a **mesma página** (testado: dois saves simultâneos da mesma versão → um 200, um 409).
 - A versão protege uma linha, não a **estrutura**: duas movimentações opostas simultâneas (A para dentro de B e B para dentro de A) passariam na checagem de ciclo e formariam um laço. Por isso criar e mover páginas rodam numa transação que trava a linha do espaço (`SELECT ... FOR UPDATE`): mudanças de estrutura no mesmo espaço entram em fila, o que também evita posições duplicadas entre irmãos.
 - O cliente precisa reenviar a versão (vem em toda leitura de página).
+- Um PATCH que não muda nada (mesmo título, conteúdo e pai) responde 200 com a página atual, sem gravar e sem checar a versão: salvar uma página intocada não deve causar 409 em quem a edita ao mesmo tempo.
 - Não há merge automático: em conflito, a pessoa compara com a versão atual e decide se salva por cima.
 
 ## Quando eu mudaria de ideia
 
-Com edição colaborativa em tempo real (várias pessoas no mesmo documento), versionamento por página não basta: usaria CRDT/OT (ex.: Yjs) com sincronização por WebSocket, (o histórico de versões, que permite restaurar, já existe: [ADR 007](007-historico-de-versoes.md)).
+Com edição colaborativa em tempo real (várias pessoas no mesmo documento), versionamento por página não basta: usaria CRDT/OT (ex.: Yjs) com sincronização por WebSocket (o histórico de versões, que permite restaurar, já existe: [ADR 007](007-historico-de-versoes.md)).
