@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Paginated, PaginationQueryDto, toPage, toSkipTake } from '../common/pagination.dto';
 import { orNotFound } from '../common/prisma-errors';
 import { PrismaService } from '../prisma/prisma.service';
@@ -17,6 +17,9 @@ const NOT_FOUND = 'Espaço não encontrado';
 
 @Injectable()
 export class SpacesService {
+  // Eventos de negócio no log estruturado (ADR 009): o requestId e o usuário vêm da requisição
+  private readonly logger = new Logger(SpacesService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(query: PaginationQueryDto): Promise<Paginated<SpaceDto>> {
@@ -41,22 +44,27 @@ export class SpacesService {
     return space;
   }
 
-  create(dto: CreateSpaceDto): Promise<SpaceDto> {
-    return this.prisma.space.create({ data: dto, select: SPACE_FIELDS });
+  async create(dto: CreateSpaceDto): Promise<SpaceDto> {
+    const space = await this.prisma.space.create({ data: dto, select: SPACE_FIELDS });
+    this.logger.log({ event: 'space.created', spaceId: space.id }, 'Espaço criado');
+    return space;
   }
 
   async update(id: string, dto: UpdateSpaceDto): Promise<SpaceDto> {
     if (Object.values(dto).every((value) => value === undefined)) {
       throw new BadRequestException('Informe ao menos um campo para atualizar');
     }
-    return orNotFound(
+    const space = await orNotFound(
       this.prisma.space.update({ where: { id }, data: dto, select: SPACE_FIELDS }),
       NOT_FOUND,
     );
+    this.logger.log({ event: 'space.updated', spaceId: id }, 'Espaço atualizado');
+    return space;
   }
 
   /** Exclui o espaço e, por ON DELETE CASCADE, todas as suas páginas. */
   async remove(id: string): Promise<void> {
     await orNotFound(this.prisma.space.delete({ where: { id }, select: { id: true } }), NOT_FOUND);
+    this.logger.log({ event: 'space.deleted', spaceId: id }, 'Espaço excluído com as páginas');
   }
 }

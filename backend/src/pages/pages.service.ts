@@ -1,4 +1,10 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { Paginated, PaginationQueryDto, toPage, toSkipTake } from '../common/pagination.dto';
 import { orNotFound } from '../common/prisma-errors';
 import { Prisma } from '../generated/prisma/client';
@@ -32,10 +38,13 @@ const TOO_DEEP = `A hierarquia de páginas pode ter no máximo ${MAX_TREE_DEPTH}
 
 @Injectable()
 export class PagesService {
+  // Eventos de negócio no log estruturado (ADR 009): o requestId e o usuário vêm da requisição
+  private readonly logger = new Logger(PagesService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async create(spaceId: string, dto: CreatePageDto, userId: string): Promise<PageDto> {
-    return this.prisma.$transaction(async (tx) => {
+    const page = await this.prisma.$transaction(async (tx) => {
       if (!(await this.lockSpace(tx, spaceId))) {
         throw new NotFoundException('Espaço não encontrado');
       }
@@ -62,6 +71,8 @@ export class PagesService {
         select: PAGE_FIELDS,
       });
     });
+    this.logger.log({ event: 'page.created', pageId: page.id, spaceId }, 'Página criada');
+    return page;
   }
 
   async findOne(id: string): Promise<PageDto> {
@@ -100,7 +111,7 @@ export class PagesService {
     const moving = changes.parentId !== undefined && changes.parentId !== current.parentId;
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      const page = await this.prisma.$transaction(async (tx) => {
         let position: number | undefined;
         if (moving) {
           await this.lockSpace(tx, current.spaceId);
@@ -122,6 +133,11 @@ export class PagesService {
           select: PAGE_FIELDS,
         });
       });
+      this.logger.log(
+        { event: 'page.updated', pageId: id, version: page.version, textChanged, moved: moving },
+        'Página atualizada',
+      );
+      return page;
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
         // Nenhuma linha casou: ou a versão ficou velha (409) ou a página sumiu no meio (404)
@@ -174,6 +190,7 @@ export class PagesService {
   /** Exclui a página e, por ON DELETE CASCADE, todas as subpáginas. */
   async remove(id: string): Promise<void> {
     await orNotFound(this.prisma.page.delete({ where: { id }, select: { id: true } }), NOT_FOUND);
+    this.logger.log({ event: 'page.deleted', pageId: id }, 'Página excluída com as subpáginas');
   }
 
   /** Todos os espaços com suas árvores: 2 queries (páginas sem content) e montagem em O(n). */
