@@ -22,8 +22,13 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/package.json /app/prisma7.config.ts ./
 COPY --from=build /app/prisma ./prisma
-# O seed (tsx) importa o client gerado em TypeScript a partir de src/generated
-COPY --from=build /app/src/generated ./src/generated
+# O seed (tsx) importa TypeScript de src/: o client gerado e as regras que ele compartilha com a
+# API (normalização de tags, assinatura das imagens, limite do conteúdo)
+COPY --from=build /app/src ./src
+# Conteúdo do portal: a documentação do repositório (contexto "docs" do docker-compose.yml).
+# O seed lê o Markdown e os diagramas daqui no primeiro boot
+COPY --from=docs . ./docs
+ENV SEED_DOCS_DIR=/app/docs
 USER node
 EXPOSE 3001
 # migrations → seed idempotente → API. exec: o node substitui o sh como PID 1 e recebe o

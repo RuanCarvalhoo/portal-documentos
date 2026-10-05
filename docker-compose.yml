@@ -22,7 +22,11 @@ services:
       start_period: 10s
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      # A documentação (docs/) vira o conteúdo do portal: o seed a lê dentro da imagem
+      additional_contexts:
+        docs: ./docs
     environment:
       # Dentro da rede do Compose o banco é db:5432 (a 5433 é só a porta publicada no host)
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-portal-documentos}

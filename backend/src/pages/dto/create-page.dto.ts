@@ -13,10 +13,7 @@ import {
 } from 'class-validator';
 import { lowercase, trim } from '../../common/transforms';
 import { MAX_TAG_LENGTH, MAX_TAGS_PER_PAGE, normalizeTags, TAG_PATTERN } from '../../tags/tags.util';
-
-// Teto do Markdown em caracteres. O corpo da requisição ainda passa pelo limite do body parser
-// (100 KB): texto com muitos caracteres multibyte pode receber 413 antes de chegar aqui.
-export const MAX_CONTENT_LENGTH = 50_000;
+import { MAX_CONTENT_LENGTH } from '../page-limits';
 
 export const PageTitleRules = (): PropertyDecorator =>
   applyDecorators(

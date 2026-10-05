@@ -1,4 +1,4 @@
-# ADR 008 — Chamadas do navegador: proxy `/api` no servidor do Next
+# ADR 008 — Chamadas do navegador: proxy /api no servidor do Next
 
 **Status:** aceito (substitui a chamada direta do navegador para a API)
 

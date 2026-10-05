@@ -1,271 +1,149 @@
 // Seed idempotente: roda a cada start do container (npm run db:seed).
 // Tudo numa transação com advisory lock (se falhar no meio, nada fica pela metade e o
 // próximo start tenta de novo; instâncias concorrentes não duplicam):
-// - Usuário demo: criado só se o e-mail não existir.
-// - Espaços/páginas: criados só se ainda não houver nenhum espaço.
+// - Contas de demonstração (uma por perfil): garantidas a cada start, com o perfil certo.
+// - Conteúdo: só num banco sem espaços. É a própria documentação do projeto, lida de docs/
+//   (Markdown e diagramas), com os diagramas enviados como imagens e os links entre documentos
+//   trocados por links para as páginas do portal.
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { hash } from 'bcryptjs';
+import { createHash, randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { basename, join, resolve } from 'node:path';
 import { Prisma, PrismaClient, Role } from '../src/generated/prisma/client';
+import { MAX_CONTENT_LENGTH } from '../src/pages/page-limits';
+import { normalizeTag } from '../src/tags/tags.util';
+import { detectImageType } from '../src/uploads/upload.util';
+import { type Author, type PageEntry, REPOSITORY_URL, SPACES } from './seed/manifest';
+import { localImages, rewriteLinks, splitTitle } from './seed/markdown';
 
 // Credenciais de DEMONSTRAÇÃO, documentadas no README para o avaliador — não são segredo.
-// Uma conta por perfil (ADR 012); a primeira é a autora do conteúdo de exemplo.
+// Uma conta por perfil (ADR 012); admin e editor assinam o conteúdo.
 const DEMO_USERS = [
-  { name: 'Admin Demo', email: 'demo@example.com', password: 'demo1234', role: Role.ADMIN },
-  { name: 'Editora Demo', email: 'editor@example.com', password: 'editor1234', role: Role.EDITOR },
-  { name: 'Leitor Demo', email: 'leitor@example.com', password: 'leitor1234', role: Role.READER },
-];
+  { key: 'admin', name: 'Admin Demo', email: 'demo@example.com', password: 'demo1234', role: Role.ADMIN },
+  {
+    key: 'editor',
+    name: 'Editora Demo',
+    email: 'editor@example.com',
+    password: 'editor1234',
+    role: Role.EDITOR,
+  },
+  {
+    key: 'reader',
+    name: 'Leitor Demo',
+    email: 'leitor@example.com',
+    password: 'leitor1234',
+    role: Role.READER,
+  },
+] as const;
 const BCRYPT_ROUNDS = 10;
-const FENCE = '```';
 
-interface PageSeed {
-  title: string;
-  content: string;
-  /** Texto anterior: a página nasce com ele e é editada para `content`, deixando um histórico */
-  draft?: string;
-  children?: PageSeed[];
-}
+// No container a documentação é copiada para /app/docs (SEED_DOCS_DIR); fora dele, é a pasta
+// docs/ na raiz do repositório
+const DOCS_DIR = process.env.SEED_DOCS_DIR ?? resolve(__dirname, '../../docs');
+const DRAFTS_DIR = join(__dirname, 'seed');
 
-interface SpaceSeed {
-  name: string;
-  description: string;
-  pages: PageSeed[];
-}
+type Tx = Prisma.TransactionClient;
 
-const MARKDOWN_GUIDE = `Esta página mostra **todos os elementos de Markdown** suportados pelo portal. Use-a como referência ao escrever.
-
-## Títulos
-
-Use \`#\` a \`######\` para criar títulos. O sumário da página é gerado a partir deles.
-
-### Ênfase
-
-Texto em **negrito**, em *itálico*, ~~riscado~~ e \`código inline\`.
-
-## Listas
-
-- Item de lista
-- Outro item
-  - Item aninhado
-
-1. Primeiro passo
-2. Segundo passo
-3. Terceiro passo
-
-- [x] Tarefa concluída
-- [ ] Tarefa pendente
-
-## Tabela
-
-| Método | Rota | Autenticação |
-| ------ | ---- | ------------ |
-| GET | \`/spaces\` | Pública |
-| POST | \`/spaces\` | Obrigatória |
-| DELETE | \`/pages/:id\` | Obrigatória |
-
-## Links e imagens
-
-Consulte o [guia oficial de Markdown](https://commonmark.org/help/).
-
-![Diagrama de exemplo](https://placehold.co/800x240/png?text=Diagrama+de+exemplo)
-
-## Citação
-
-> Documentação boa é documentação atualizada.
-
-## Blocos de código
-
-${FENCE}typescript
-interface Page {
+interface LoadedPage {
+  entry: PageEntry;
   id: string;
   title: string;
-  children: Page[];
+  body: string;
 }
 
-export function countPages(pages: Page[]): number {
-  return pages.reduce((total, page) => total + 1 + countPages(page.children), 0);
+const flatten = (pages: PageEntry[]): PageEntry[] =>
+  pages.flatMap((page) => [page, ...flatten(page.children ?? [])]);
+
+/** Lê cada documento e já sorteia o id da página (os links entre documentos precisam dele). */
+function loadDocuments(): Map<string, LoadedPage> {
+  const loaded = new Map<string, LoadedPage>();
+  for (const entry of SPACES.flatMap((space) => flatten(space.pages))) {
+    const { title, body } = splitTitle(readFileSync(join(DOCS_DIR, entry.file), 'utf8'));
+    // uuid v4 aqui (o padrão do banco é v7): são poucas linhas, e o id precisa existir antes do
+    // INSERT para os links apontarem para as páginas certas numa única passada
+    loaded.set(entry.file, { entry, id: randomUUID(), title: entry.title ?? title, body });
+  }
+  return loaded;
 }
-${FENCE}
 
-${FENCE}bash
-docker compose up --build
-${FENCE}
-
----
-
-Fim do guia.`;
-
-const SPACES: SpaceSeed[] = [
-  {
-    name: 'Arquitetura',
-    description: 'Visão geral da arquitetura do sistema, decisões técnicas e padrões do backend.',
-    pages: [
-      {
-        title: 'Introdução',
-        draft: `## Visão geral
-
-Rascunho: frontend web, API REST e banco relacional. Falta detalhar a estrutura e os princípios.`,
-        content: `## Visão geral
-
-Este documento descreve a arquitetura do sistema: um frontend web que consome uma API REST, que por sua vez persiste os dados em um banco relacional.
-
-## Estrutura
-
-${FENCE}typescript
-const app = await NestFactory.create(AppModule);
-app.enableShutdownHooks();
-await app.listen(3001);
-${FENCE}
-
-## Princípios
-
-- Simplicidade antes de abstração
-- Toda decisão relevante é registrada em um ADR
-- O backend é a fonte da verdade das regras de negócio`,
-      },
-      {
-        title: 'Backend',
-        content: `O backend é uma API REST organizada em **módulos por domínio** (autenticação, espaços, páginas e busca).
-
-Cada módulo tem *controller* (HTTP), *service* (regras de negócio) e DTOs (validação de entrada).`,
-        children: [
-          {
-            title: 'API',
-            content: `## Convenções
-
-- Recursos no plural: \`/spaces\`, \`/pages\`
-- Listagens paginadas com \`?page=\` e \`?limit=\` (máximo 50)
-- Erros sempre no mesmo formato:
-
-${FENCE}json
-{
-  "statusCode": 404,
-  "error": "Not Found",
-  "message": "Página não encontrada",
-  "path": "/pages/123",
-  "timestamp": "2026-01-01T12:00:00.000Z"
-}
-${FENCE}`,
-          },
-          {
-            title: 'Autenticação',
-            content: `A autenticação usa **JWT**. O token é obtido em \`POST /auth/login\` e enviado no header:
-
-${FENCE}http
-Authorization: Bearer <token>
-${FENCE}
-
-Leitura é pública; criar, editar e excluir exigem login.`,
-          },
-          {
-            title: 'Banco de dados',
-            content: `PostgreSQL com Prisma. As páginas formam uma **árvore** por lista de adjacência (\`parentId\`).
-
-| Tabela | Descrição |
-| ------ | --------- |
-| \`users\` | Usuários |
-| \`spaces\` | Espaços de documentação |
-| \`pages\` | Páginas em Markdown |`,
-            children: [
-              {
-                title: 'Migrations',
-                content: `As migrations são aplicadas automaticamente quando o container da API sobe:
-
-${FENCE}bash
-npm run db:deploy
-${FENCE}
-
-Nunca edite uma migration já aplicada — crie uma nova.`,
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    name: 'Onboarding',
-    description: 'Tudo o que uma pessoa nova no time precisa para começar.',
-    pages: [
-      {
-        title: 'Ambiente de desenvolvimento',
-        content: `Para rodar o projeto você só precisa do **Docker**.
-
-${FENCE}bash
-git clone <url-do-repositorio>
-docker compose up --build
-${FENCE}`,
-        children: [
-          {
-            title: 'Variáveis de ambiente',
-            content: `Os valores padrão já estão no \`docker-compose.yml\`. Para rodar fora do Docker, copie \`.env.example\` para \`.env\`.
-
-> Os valores padrão servem **apenas para desenvolvimento**.`,
-          },
-          {
-            title: 'Ferramentas recomendadas',
-            content: `- Node.js 24
-- Um editor com suporte a TypeScript
-- Um cliente HTTP para testar a API (ou o Swagger em \`/docs\`)`,
-          },
-        ],
-      },
-      {
-        title: 'Primeiro acesso',
-        content: `1. Acesse o portal em \`http://localhost:3000\`
-2. Clique em **Entrar** e use o usuário de demonstração
-3. Navegue pelos espaços na barra lateral
-4. Crie sua primeira página dentro de um espaço`,
-      },
-    ],
-  },
-  {
-    name: 'Guias',
-    description: 'Guias práticos de escrita e uso do portal.',
-    pages: [
-      { title: 'Guia de Markdown', content: MARKDOWN_GUIDE },
-      {
-        title: 'Boas práticas de documentação',
-        content: `- Escreva para quem vai ler, não para quem escreveu
-- Prefira exemplos curtos e executáveis
-- Mantenha cada página focada em um assunto`,
-        children: [
-          {
-            title: 'Escrevendo bons títulos',
-            content: `Um bom título diz **o que** a página resolve: "Como configurar o ambiente" é melhor do que "Ambiente".`,
-          },
-        ],
-      },
-    ],
-  },
-];
-
-async function createPages(
-  tx: Prisma.TransactionClient,
-  spaceId: string,
-  authorId: string,
-  pages: PageSeed[],
-  parentId: string | null,
-): Promise<number> {
-  let created = 0;
-  for (const [position, page] of pages.entries()) {
-    const { id } = await tx.page.create({
-      data: {
-        title: page.title,
-        content: page.draft ?? page.content,
-        position,
-        spaceId,
-        parentId,
-        createdById: authorId,
-        updatedById: authorId,
+/** Envia os diagramas referenciados como uploads (o sha256 reaproveita os que já existem). */
+async function uploadImages(
+  tx: Tx,
+  documents: Map<string, LoadedPage>,
+  uploadedById: string,
+): Promise<Map<string, string>> {
+  const paths = new Set([...documents.values()].flatMap(({ entry, body }) => localImages(body, entry.file)));
+  const ids = new Map<string, string>();
+  for (const path of paths) {
+    const data = readFileSync(join(DOCS_DIR, path));
+    const mimeType = detectImageType(data);
+    if (!mimeType) {
+      throw new Error(`Imagem em formato não suportado: ${path}`);
+    }
+    const sha256 = createHash('sha256').update(data).digest('hex');
+    const { id } = await tx.upload.upsert({
+      where: { sha256 },
+      update: {},
+      create: {
+        fileName: basename(path),
+        mimeType,
+        size: data.length,
+        sha256,
+        data: new Uint8Array(data),
+        uploadedById,
       },
       select: { id: true },
     });
-    if (page.draft) {
+    ids.set(path, id);
+  }
+  return ids;
+}
+
+async function tagLinks(tx: Tx, names: string[]): Promise<{ tagId: string }[]> {
+  const normalized = names.map(normalizeTag);
+  await tx.tag.createMany({ data: normalized.map((name) => ({ name })), skipDuplicates: true });
+  const tags = await tx.tag.findMany({ where: { name: { in: normalized } }, select: { id: true } });
+  return tags.map(({ id }) => ({ tagId: id }));
+}
+
+async function createPages(
+  tx: Tx,
+  spaceId: string,
+  entries: PageEntry[],
+  parentId: string | null,
+  pages: Map<string, LoadedPage & { content: string }>,
+  authors: Record<Author, string>,
+): Promise<number> {
+  let created = 0;
+  for (const [position, entry] of entries.entries()) {
+    const page = pages.get(entry.file)!;
+    const author = authors[entry.author];
+    const editor = authors[entry.editedBy ?? entry.author];
+    const draft = entry.draft ? readFileSync(join(DRAFTS_DIR, entry.draft), 'utf8') : undefined;
+    await tx.page.create({
+      data: {
+        id: page.id,
+        title: page.title,
+        content: draft ?? page.content,
+        position,
+        spaceId,
+        parentId,
+        createdById: author,
+        updatedById: draft ? author : editor,
+        tags: { create: await tagLinks(tx, entry.tags) },
+      },
+      select: { id: true },
+    });
+    if (draft) {
       // Mesma edição que a API faz: o trigger guarda o rascunho como versão 1 no histórico
-      await tx.page.update({ where: { id }, data: { content: page.content, version: { increment: 1 } } });
+      await tx.page.update({
+        where: { id: page.id },
+        data: { content: page.content, updatedById: editor, version: { increment: 1 } },
+      });
     }
-    created += 1 + (await createPages(tx, spaceId, authorId, page.children ?? [], id));
+    created += 1 + (await createPages(tx, spaceId, entry.children ?? [], page.id, pages, authors));
   }
   return created;
 }
@@ -278,7 +156,7 @@ async function main(): Promise<void> {
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
   try {
-    const pageCount = await prisma.$transaction(
+    const result = await prisma.$transaction(
       async (tx) => {
         // Lock da transação: duas instâncias subindo juntas não fazem o "conta e insere" ao
         // mesmo tempo (a segunda espera e então vê os espaços já criados).
@@ -286,36 +164,55 @@ async function main(): Promise<void> {
 
         // Sempre, mesmo com conteúdo: num banco antigo a conta demo existe sem o perfil certo.
         // A senha só é definida na criação (quem a trocou não a perde a cada boot).
-        const [user] = await Promise.all(
-          DEMO_USERS.map(async ({ password, ...profile }) =>
-            tx.user.upsert({
-              where: { email: profile.email },
-              update: { name: profile.name, role: profile.role },
-              create: { ...profile, passwordHash: await hash(password, BCRYPT_ROUNDS) },
-              select: { id: true },
-            }),
-          ),
-        );
+        const users: Record<string, string> = {};
+        for (const { key, password, ...profile } of DEMO_USERS) {
+          const { id } = await tx.user.upsert({
+            where: { email: profile.email },
+            update: { name: profile.name, role: profile.role },
+            create: { ...profile, passwordHash: await hash(password, BCRYPT_ROUNDS) },
+            select: { id: true },
+          });
+          users[key] = id;
+        }
 
         if ((await tx.space.count()) > 0) {
           return null;
         }
-        let total = 0;
+        const authors: Record<Author, string> = { admin: users.admin, editor: users.editor };
+        const documents = loadDocuments();
+        const images = await uploadImages(tx, documents, authors.admin);
+        const pageIds = new Map([...documents].map(([file, { id }]) => [file, id]));
+        const pages = new Map(
+          [...documents].map(([file, page]) => {
+            const content = rewriteLinks(page.body, file, {
+              pages: pageIds,
+              images,
+              repositoryUrl: REPOSITORY_URL,
+            });
+            // Acima do limite da API a página não poderia mais ser salva pelo editor
+            if (Array.from(content).length > MAX_CONTENT_LENGTH) {
+              throw new Error(`${file} passa de ${MAX_CONTENT_LENGTH} caracteres`);
+            }
+            return [file, { ...page, content }];
+          }),
+        );
+
+        let created = 0;
         for (const space of SPACES) {
           const { id } = await tx.space.create({
             data: { name: space.name, description: space.description },
             select: { id: true },
           });
-          total += await createPages(tx, id, user.id, space.pages, null);
+          created += await createPages(tx, id, space.pages, null, pages, authors);
         }
-        return total;
+        return { pages: created, images: images.size };
       },
-      { timeout: 30_000 },
+      { timeout: 60_000 },
     );
     console.info(
-      pageCount === null
+      result === null
         ? 'Seed: espaços já existem, nada a criar.'
-        : `Seed: ${SPACES.length} espaços e ${pageCount} páginas criados.`,
+        : `Seed: ${SPACES.length} espaços, ${result.pages} páginas e ${result.images} imagens criados a partir de ${DOCS_DIR}.`,
     );
   } finally {
     await prisma.$disconnect();
