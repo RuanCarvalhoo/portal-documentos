@@ -29,8 +29,8 @@ interface LinkInfo {
 
 /**
  * Diz se o clique num link tira esta aba da página atual dentro do portal. Fora daqui:
- * clique com modificador ou com outro botão, nova aba, download, âncora da própria página e
- * links para outros sites (esses o navegador já confirma pelo beforeunload).
+ * clique com modificador ou com outro botão, nova aba, download, a própria página (com ou sem
+ * âncora) e links para outros sites (esses o navegador já confirma pelo beforeunload).
  */
 export function leavesPage(link: LinkInfo, click: { button: number; modified: boolean }, current: string): boolean {
   if (click.button !== 0 || click.modified || link.hasDownload || (link.target !== '' && link.target !== '_self')) {
@@ -41,6 +41,6 @@ export function leavesPage(link: LinkInfo, click: { button: number; modified: bo
   if (destination.origin !== here.origin) {
     return false;
   }
-  const samePage = destination.pathname === here.pathname && destination.search === here.search;
-  return !(samePage && destination.hash !== '');
+  // A própria página (com ou sem âncora): a rota não muda e o formulário continua montado
+  return destination.pathname !== here.pathname || destination.search !== here.search;
 }

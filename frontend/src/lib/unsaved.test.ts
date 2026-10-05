@@ -22,6 +22,8 @@ test('clicks that keep this tab on the page do not count', () => {
   assert.equal(leavesPage(link('http://localhost:3000/x', { target: '_blank' }), LEFT_CLICK, HERE), false);
   assert.equal(leavesPage(link('http://localhost:3000/x', { hasDownload: true }), LEFT_CLICK, HERE), false);
   assert.equal(leavesPage(link(`${HERE}#portal-conteudo`), LEFT_CLICK, HERE), false, 'âncora da própria página');
+  // Ex.: em /spaces/new, o link "Novo espaço" da barra lateral: a rota não muda e o form fica
+  assert.equal(leavesPage(link(HERE), LEFT_CLICK, HERE), false, 'a própria página');
 });
 
 test('links to other sites are left to the browser beforeunload prompt (no double prompt)', () => {
