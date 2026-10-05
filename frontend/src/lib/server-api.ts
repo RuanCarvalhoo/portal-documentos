@@ -32,12 +32,17 @@ export async function serverFetch<T>(path: string, options: RequestOptions = {})
  * Leitura em Server Component de um recurso por id. Só ids no formato uuid chegam à API:
  * um parâmetro como "..%2Fauth%2Fme" não pode virar outro caminho. Id inexistente → 404.
  */
-export async function getOrNotFound<T>(resource: 'spaces' | 'pages', id: string): Promise<T> {
+export async function getOrNotFound<T>(
+  resource: 'spaces' | 'pages',
+  id: string,
+  // Sub-recurso montado só pelo código a partir de valores já validados (ex.: "/versions/3")
+  subresource = '',
+): Promise<T> {
   if (!UUID.test(id)) {
     notFound();
   }
   try {
-    return await serverFetch<T>(`/${resource}/${id}`);
+    return await serverFetch<T>(`/${resource}/${id}${subresource}`);
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) {
       notFound();

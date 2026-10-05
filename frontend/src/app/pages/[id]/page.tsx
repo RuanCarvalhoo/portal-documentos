@@ -79,7 +79,10 @@ export default async function PageView({ params }: PageProps<'/pages/[id]'>) {
         <p className="mt-3 text-xs text-muted">
           Criada por {page.createdBy.name} em{' '}
           <time dateTime={page.createdAt}>{formatDateTime(page.createdAt)}</time> · Editada por{' '}
-          {page.updatedBy.name} em <time dateTime={page.updatedAt}>{formatDateTime(page.updatedAt)}</time>
+          {page.updatedBy.name} em <time dateTime={page.updatedAt}>{formatDateTime(page.updatedAt)}</time> ·{' '}
+          <Link href={`/pages/${page.id}/versions`} className="underline underline-offset-4 hover:text-foreground">
+            Histórico
+          </Link>
         </p>
 
         {showToc && (

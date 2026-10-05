@@ -6,7 +6,8 @@ import { type FormEvent, memo, useDeferredValue, useRef, useState } from 'react'
 import { flushSync } from 'react-dom';
 import { ApiError, apiFetch, errorMessages } from '@/lib/api';
 import type { TreeOption } from '@/lib/tree';
-import type { Page } from '@/lib/types';
+import { formatDateTime } from '@/lib/format';
+import type { Page, PageVersion } from '@/lib/types';
 import type { FieldErrors } from '@/lib/validation';
 import { useAuth } from './auth-provider';
 import { MarkdownContent } from './markdown';
@@ -36,9 +37,11 @@ interface PageFormProps {
   /** Página sendo editada; ausente = criação */
   page?: Page;
   defaultParentId?: string | null;
+  /** Versão do histórico cujo texto abre no editor (Restaurar); salvar cria uma versão nova */
+  restoring?: PageVersion;
 }
 
-export function PageForm({ spaceId, parentOptions, page, defaultParentId }: PageFormProps) {
+export function PageForm({ spaceId, parentOptions, page, defaultParentId, restoring }: PageFormProps) {
   const currentParentId = page?.parentId ?? null;
   // Se a navegação não carregou (ou está desatualizada), o pai atual pode não estar na lista:
   // sem esta opção o seletor cairia em "raiz" e salvar moveria a página sem a pessoa pedir
@@ -48,7 +51,7 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId }: Page
       : parentOptions;
   const { token } = useAuth();
   const router = useRouter();
-  const [content, setContent] = useState(page?.content ?? '');
+  const [content, setContent] = useState(restoring?.content ?? page?.content ?? '');
   // Preview com prioridade menor que a digitação: textos longos não travam o teclado
   const previewContent = useDeferredValue(content);
   const [tab, setTab] = useState<'write' | 'preview'>('write');
@@ -65,7 +68,8 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId }: Page
     }
   }
   const [pending, setPending] = useState(false);
-  const [dirty, setDirty] = useState(false);
+  // Restaurando: o texto no editor já difere do salvo, então sair sem salvar também avisa
+  const [dirty, setDirty] = useState(restoring !== undefined);
   useUnsavedChangesWarning(dirty);
   const formRef = useRef<HTMLFormElement>(null);
   // Versão enviada no PATCH: começa na que a pessoa abriu e só muda se ela escolher salvar por
@@ -190,7 +194,13 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId }: Page
           </div>
         )}
       </ErrorAlert>
-      <Field label="Título" name="title" defaultValue={page?.title} maxLength={MAX_TITLE} error={errors.title} />
+      {restoring && (
+        <p role="note" className="rounded-md border border-border bg-surface px-4 py-3 text-sm">
+          Restaurando o texto da versão {restoring.version}, escrita por {restoring.editedBy.name} em{' '}
+          {formatDateTime(restoring.editedAt)}. Revise e salve: a versão atual vai para o histórico.
+        </p>
+      )}
+      <Field label="Título" name="title" defaultValue={restoring?.title ?? page?.title} maxLength={MAX_TITLE} error={errors.title} />
 
       <div>
         <label htmlFor="parentId" className="block text-sm font-medium">
