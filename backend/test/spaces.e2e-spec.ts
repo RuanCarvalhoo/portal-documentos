@@ -77,6 +77,16 @@ describe('Spaces (e2e)', () => {
     );
   });
 
+  it('answers 400 (not 500) for a NUL byte, which postgres does not store in text', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/spaces')
+      .set(auth)
+      .send({ name: 'E2E com \u0000 nulo' })
+      .expect(400);
+
+    expect(res.body.message).toBe('O texto contém um caractere inválido (byte nulo)');
+  });
+
   it('creates, reads, updates and deletes a space', async () => {
     const created = await request(app.getHttpServer())
       .post('/spaces')

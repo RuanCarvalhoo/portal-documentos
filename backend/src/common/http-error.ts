@@ -13,6 +13,12 @@ const PRISMA_ERRORS: Readonly<Record<string, HttpError>> = {
   P2003: { status: HttpStatus.BAD_REQUEST, message: 'Referência a um registro inexistente' },
 };
 
+// P2039 é o erro genérico do banco vindo do driver adapter; a causa real é o código do Postgres.
+// 22021: o Postgres não aceita o byte NUL (\u0000) em text — entrada inválida, não falha do servidor.
+const DATABASE_INPUT_ERRORS: Readonly<Record<string, HttpError>> = {
+  '22021': { status: HttpStatus.BAD_REQUEST, message: 'O texto contém um caractere inválido (byte nulo)' },
+};
+
 const INTERNAL_ERROR: HttpError = {
   status: HttpStatus.INTERNAL_SERVER_ERROR,
   message: 'Erro interno do servidor',
@@ -56,13 +62,24 @@ export function toHttpError(exception: unknown): HttpError {
     return { status, message: Array.isArray(message) ? message.map(localize) : localize(message) };
   }
   if (exception instanceof Prisma.PrismaClientKnownRequestError) {
-    return { ...(PRISMA_ERRORS[exception.code] ?? INTERNAL_ERROR) };
+    const known = PRISMA_ERRORS[exception.code] ?? DATABASE_INPUT_ERRORS[postgresCodeOf(exception) ?? ''];
+    return { ...(known ?? INTERNAL_ERROR) };
   }
   if (isExposedClientError(exception)) {
     const type = 'type' in exception && typeof exception.type === 'string' ? exception.type : '';
     return { status: exception.status, message: BODY_PARSER_MESSAGES[type] ?? 'Requisição inválida' };
   }
   return { ...INTERNAL_ERROR };
+}
+
+function postgresCodeOf(error: Prisma.PrismaClientKnownRequestError): string | undefined {
+  const adapterError = error.meta?.driverAdapterError;
+  const cause =
+    typeof adapterError === 'object' && adapterError !== null
+      ? Reflect.get(adapterError, 'cause')
+      : undefined;
+  const code = typeof cause === 'object' && cause !== null ? Reflect.get(cause, 'code') : undefined;
+  return typeof code === 'string' ? code : undefined;
 }
 
 function translate(status: number, message: string): string {

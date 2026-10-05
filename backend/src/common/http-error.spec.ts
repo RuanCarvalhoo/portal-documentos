@@ -32,6 +32,26 @@ describe('toHttpError', () => {
     expect(toHttpError(prismaError('P2034')).status).toBe(500);
   });
 
+  describe('database errors reported by the driver adapter (P2039)', () => {
+    const driverError = (postgresCode: string) =>
+      new Prisma.PrismaClientKnownRequestError('db error', {
+        code: 'P2039',
+        clientVersion: 'test',
+        meta: { driverAdapterError: { cause: { code: postgresCode } } },
+      });
+
+    it('answers 400 when postgres rejects a NUL byte in a text value', () => {
+      expect(toHttpError(driverError('22021'))).toEqual({
+        status: 400,
+        message: 'O texto contém um caractere inválido (byte nulo)',
+      });
+    });
+
+    it('keeps any other database error as an internal error', () => {
+      expect(toHttpError(driverError('57014')).status).toBe(500);
+    });
+  });
+
   it('hides the details of unknown errors behind a generic 500', () => {
     expect(toHttpError(new Error('password=secret leaked'))).toEqual({
       status: 500,
