@@ -17,6 +17,12 @@ describe('clientIpOf', () => {
     expect(clientIpOf(request({ [CLIENT_IP_HEADER]: '203.0.113.7' }), SECRET)).toBe('172.18.0.4');
   });
 
+  it('treats an empty secret as no secret, so an empty header cannot match it', () => {
+    expect(clientIpOf(request({ [CLIENT_IP_HEADER]: '203.0.113.7', [PROXY_SECRET_HEADER]: '' }), '')).toBe(
+      '172.18.0.4',
+    );
+  });
+
   it('ignores the forwarded IP when the API has no shared secret configured', () => {
     expect(
       clientIpOf(request({ [CLIENT_IP_HEADER]: '203.0.113.7', [PROXY_SECRET_HEADER]: SECRET }), undefined),

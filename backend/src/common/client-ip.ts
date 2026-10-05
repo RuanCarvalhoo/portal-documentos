@@ -17,8 +17,8 @@ interface IncomingRequest {
  */
 export function clientIpOf(request: IncomingRequest, proxySecret: string | undefined): string {
   const forwarded = request.headers[CLIENT_IP_HEADER];
-  const fromWebServer =
-    proxySecret !== undefined && sameSecret(request.headers[PROXY_SECRET_HEADER], proxySecret);
+  // Segredo vazio conta como "sem segredo": senão um cabeçalho vazio bateria com ele
+  const fromWebServer = !!proxySecret && sameSecret(request.headers[PROXY_SECRET_HEADER], proxySecret);
   if (fromWebServer && typeof forwarded === 'string' && forwarded !== '') {
     return forwarded;
   }
