@@ -55,6 +55,15 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId }: Page
   const [errors, setErrors] = useState<FieldErrors<PageField>>({});
   const [apiErrors, setApiErrors] = useState<string[]>([]);
   const [problem, setProblem] = useState<SaveProblem>(null);
+  // Login refeito em outra aba (token novo): o aviso de sessão expirada já não vale
+  const [tokenSeen, setTokenSeen] = useState(token);
+  if (token !== tokenSeen) {
+    setTokenSeen(token);
+    if (problem === 'session') {
+      setProblem(null);
+      setApiErrors([]);
+    }
+  }
   const [pending, setPending] = useState(false);
   const [dirty, setDirty] = useState(false);
   useUnsavedChangesWarning(dirty);
@@ -114,6 +123,8 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId }: Page
             body: { title, content, parentId },
             token,
           });
+      // Salvo: a partir daqui sair não descarta nada (a rota nova pode levar alguns segundos)
+      setDirty(false);
       const destination = `/pages/${saved.id}`;
       if (page) {
         router.replace(destination);
@@ -147,6 +158,8 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId }: Page
     }
     try {
       versionRef.current = (await apiFetch<Page>(`/pages/${page.id}`)).version;
+      // O botão clicado some com o alerta: o foco vai para o Salvar em vez de cair no body
+      formRef.current?.querySelector<HTMLElement>('button[type="submit"]')?.focus();
       formRef.current?.requestSubmit();
     } catch (error) {
       setApiErrors(errorMessages(error));
