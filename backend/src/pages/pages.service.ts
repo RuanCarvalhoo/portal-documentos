@@ -79,7 +79,7 @@ export class PagesService {
     }
     const current = await this.prisma.page.findUnique({
       where: { id },
-      select: { spaceId: true, parentId: true, title: true, content: true },
+      select: { spaceId: true, parentId: true, title: true, content: true, updatedAt: true },
     });
     if (!current) {
       throw new NotFoundException(NOT_FOUND);
@@ -87,6 +87,11 @@ export class PagesService {
     // Salvar sem mudar nada não gera versão nova: senão quem edita a página ao mesmo tempo
     // levaria um 409 por uma "alteração" que não existe
     const changed = (Object.keys(changes) as (keyof typeof changes)[]).some(
+      (field) => changes[field] !== undefined && changes[field] !== current[field],
+    );
+    // "Editada por/em" é sobre o texto: mover sem editar mantém quem escreveu (e o histórico, que
+    // copia esses campos, atribui cada versão a quem de fato a escreveu)
+    const textChanged = (['title', 'content'] as const).some(
       (field) => changes[field] !== undefined && changes[field] !== current[field],
     );
     if (!changed) {
@@ -108,7 +113,12 @@ export class PagesService {
         // só grava se ninguém salvou depois da versão que o cliente leu
         return tx.page.update({
           where: { id, version },
-          data: { ...changes, position, updatedById: userId, version: { increment: 1 } },
+          data: {
+            ...changes,
+            position,
+            ...(textChanged ? { updatedById: userId } : { updatedAt: current.updatedAt }),
+            version: { increment: 1 },
+          },
           select: PAGE_FIELDS,
         });
       });
