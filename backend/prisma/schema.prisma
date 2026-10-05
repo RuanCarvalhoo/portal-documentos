@@ -39,6 +39,7 @@ model User {
   createdPages Page[]        @relation("PageCreatedBy")
   updatedPages Page[]        @relation("PageUpdatedBy")
   pageVersions PageVersion[]
+  uploads      Upload[]
 
   @@map("users")
 }
@@ -143,4 +144,21 @@ model PageTag {
   @@id([pageId, tagId])
   @@index([tagId])
   @@map("page_tags")
+}
+
+// Imagens enviadas pelo editor (ADR 010), guardadas no próprio Postgres (bytea): o "um comando"
+// continua sem infraestrutura extra e qualquer réplica da API serve qualquer imagem. O sha256
+// é único: o mesmo arquivo enviado de novo reaproveita o registro (e vira o ETag da resposta).
+model Upload {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  fileName     String   @map("file_name")
+  mimeType     String   @map("mime_type")
+  size         Int
+  sha256       String   @unique @db.Char(64)
+  data         Bytes
+  uploadedById String   @map("uploaded_by_id") @db.Uuid
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("uploads")
 }

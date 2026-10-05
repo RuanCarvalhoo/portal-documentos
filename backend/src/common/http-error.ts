@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
+import { MAX_UPLOAD_MB } from '../uploads/upload.util';
 
 export interface HttpError {
   status: number;
@@ -41,6 +42,14 @@ const FRAMEWORK_MESSAGES: readonly Translation[] = [
   ],
   [HttpStatus.BAD_REQUEST, /^Failed to decode param /, () => 'Parâmetro inválido na URL'],
   [HttpStatus.BAD_REQUEST, /\bJSON\b/, () => 'O corpo da requisição não é um JSON válido'],
+  // Upload (multer): os erros chegam com a mensagem dele
+  [HttpStatus.PAYLOAD_TOO_LARGE, /^File too large/, () => `A imagem deve ter no máximo ${MAX_UPLOAD_MB} MB`],
+  [
+    HttpStatus.BAD_REQUEST,
+    /^(Unexpected file field|Too many files|Too many fields)/,
+    () => 'Envie uma única imagem, no campo "file"',
+  ],
+  [HttpStatus.BAD_REQUEST, /^Multipart: /, () => 'Envio de arquivo malformado'],
   [
     HttpStatus.NOT_FOUND,
     /^Cannot ([A-Z]+) (.+)$/,
