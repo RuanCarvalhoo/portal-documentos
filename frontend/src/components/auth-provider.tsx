@@ -7,7 +7,24 @@ import type { AuthResponse, AuthUser } from '@/lib/types';
 // Trade-off documentado (ADR 004): token em localStorage, mitigado por Markdown sem HTML cru
 const TOKEN_KEY = 'portal-docs:token';
 // Com a API pendurada, a sessão não pode ficar em "Carregando..." para sempre
-const ME_TIMEOUT_MS = 5_000;
+const ME_TIMEOUT_MS = 10_000;
+const RESTORE_RETRY_DELAY_MS = 1_500;
+
+const fetchProfile = (token: string) => apiFetch<AuthUser>('/auth/me', { token, timeoutMs: ME_TIMEOUT_MS });
+
+// Falha transitória (rede, API reiniciando, aba lenta durante a hidratação) não pode deixar a aba
+// "deslogada" com um token válido salvo: tenta mais uma vez. Só um 401 encerra a sessão.
+async function fetchProfileWithRetry(token: string): Promise<AuthUser> {
+  try {
+    return await fetchProfile(token);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, RESTORE_RETRY_DELAY_MS));
+    return fetchProfile(token);
+  }
+}
 
 // Armazenamento bloqueado (modo privado, política do navegador) não pode derrubar a aplicação
 function readToken(): string | null {
@@ -65,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const stillCurrent = () => readToken() === saved;
     // Token salvo pode ter expirado: confirma com a API antes de considerar logado
     const restore = saved
-      ? apiFetch<AuthUser>('/auth/me', { token: saved, timeoutMs: ME_TIMEOUT_MS }).then(
+      ? fetchProfileWithRetry(saved).then(
           (profile) => {
             if (stillCurrent()) {
               setToken(saved);
@@ -92,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!fresh) {
         return;
       }
-      apiFetch<AuthUser>('/auth/me', { token: fresh, timeoutMs: ME_TIMEOUT_MS }).then(
+      fetchProfile(fresh).then(
         (profile) => {
           setToken(fresh);
           setUser(profile);
