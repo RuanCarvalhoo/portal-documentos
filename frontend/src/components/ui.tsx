@@ -46,31 +46,6 @@ export function SubmitButton({ pending, children }: { pending: boolean; children
   );
 }
 
-/**
- * Erros vindos da API (400 com lista, 401, 409, 429...). A região role=alert fica sempre
- * montada: leitores de tela anunciam o conteúdo que entra nela, o que não acontece de forma
- * confiável quando o elemento já nasce com o texto.
- */
-export function ErrorAlert({ messages }: { messages: string[] }) {
-  return (
-    <div role="alert">
-      {messages.length > 0 && (
-        <div className="rounded-md bg-danger-bg px-4 py-3 text-sm text-danger-fg">
-          {messages.length === 1 ? (
-            <p>{messages[0]}</p>
-          ) : (
-            <ul className="list-disc space-y-1 pl-4">
-              {messages.map((message, index) => (
-                <li key={`${index}-${message}`}>{message}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function AuthCard({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
     <div className="mx-auto max-w-sm py-6">

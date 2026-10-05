@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { type FormEvent } from 'react';
+import { confirmLeave } from '@/lib/unsaved';
 import { useAuth } from './auth-provider';
 import { CloseIcon, LogoIcon, MenuIcon, SearchIcon } from './icons';
 import { ThemeToggle } from './theme-toggle';
@@ -18,7 +19,8 @@ export function Header({ menuOpen, onToggleMenu }: HeaderProps) {
   const search = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const q = new FormData(event.currentTarget).get('q')?.toString().trim();
-    if (q) {
+    // Navega sem link (router.push): o aviso de texto não salvo não pegaria sozinho
+    if (q && confirmLeave()) {
       router.push(`/search?q=${encodeURIComponent(q)}`);
     }
   };
@@ -110,7 +112,7 @@ function UserArea() {
       </span>
       <button
         type="button"
-        onClick={logout}
+        onClick={() => confirmLeave() && logout()}
         className="h-9 rounded-md border border-border px-3 text-muted transition-colors hover:bg-hover hover:text-foreground"
       >
         Sair

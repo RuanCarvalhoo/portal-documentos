@@ -6,6 +6,8 @@ import type { AuthResponse, AuthUser } from '@/lib/types';
 
 // Trade-off documentado (ADR 004): token em localStorage, mitigado por Markdown sem HTML cru
 const TOKEN_KEY = 'portal-docs:token';
+// Com a API pendurada, a sessão não pode ficar em "Carregando..." para sempre
+const ME_TIMEOUT_MS = 5_000;
 
 // Armazenamento bloqueado (modo privado, política do navegador) não pode derrubar a aplicação
 function readToken(): string | null {
@@ -63,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const stillCurrent = () => readToken() === saved;
     // Token salvo pode ter expirado: confirma com a API antes de considerar logado
     const restore = saved
-      ? apiFetch<AuthUser>('/auth/me', { token: saved }).then(
+      ? apiFetch<AuthUser>('/auth/me', { token: saved, timeoutMs: ME_TIMEOUT_MS }).then(
           (profile) => {
             if (stillCurrent()) {
               setToken(saved);
@@ -79,6 +81,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         )
       : Promise.resolve();
     void restore.finally(() => setReady(true));
+  }, []);
+
+  // Login feito em outra aba (por exemplo, depois de a sessão expirar no meio de uma edição):
+  // esta aba assume o novo token sem recarregar, e o texto do editor continua onde estava.
+  // Logout em outra aba não derruba esta: desmontaria um formulário com alterações não salvas.
+  useEffect(() => {
+    const adoptLoginFromOtherTab = (event: StorageEvent) => {
+      const fresh = event.key === TOKEN_KEY ? event.newValue : null;
+      if (!fresh) {
+        return;
+      }
+      apiFetch<AuthUser>('/auth/me', { token: fresh, timeoutMs: ME_TIMEOUT_MS }).then(
+        (profile) => {
+          setToken(fresh);
+          setUser(profile);
+        },
+        // Token recusado ou API fora: mantém a sessão atual desta aba
+        () => undefined,
+      );
+    };
+    window.addEventListener('storage', adoptLoginFromOtherTab);
+    return () => window.removeEventListener('storage', adoptLoginFromOtherTab);
   }, []);
 
   const login = useCallback(

@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { useAuth } from '@/components/auth-provider';
-import { ErrorAlert, Field, SubmitButton } from '@/components/ui';
+import { ErrorAlert } from '@/components/error-alert';
+import { Field, SubmitButton } from '@/components/ui';
 import { errorMessages } from '@/lib/api';
 import { type FieldErrors, isEmail } from '@/lib/validation';
 

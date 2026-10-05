@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, memo, useDeferredValue, useState } from 'react';
+import { type FormEvent, memo, useDeferredValue, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { ApiError, apiFetch, errorMessages } from '@/lib/api';
 import type { TreeOption } from '@/lib/tree';
@@ -10,9 +10,13 @@ import type { Page } from '@/lib/types';
 import type { FieldErrors } from '@/lib/validation';
 import { useAuth } from './auth-provider';
 import { MarkdownContent } from './markdown';
-import { ErrorAlert, Field, secondaryButton, SubmitButton } from './ui';
+import { ErrorAlert } from './error-alert';
+import { Field, secondaryButton, SubmitButton } from './ui';
+import { useUnsavedChangesWarning } from './use-unsaved-changes';
 
 type PageField = 'title' | 'content';
+// Erros que pedem uma ação além de corrigir um campo
+type SaveProblem = 'conflict' | 'session' | null;
 
 // Mesmos limites da API (CreatePageDto)
 const MAX_TITLE = 200;
@@ -50,7 +54,14 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId }: Page
   const [tab, setTab] = useState<'write' | 'preview'>('write');
   const [errors, setErrors] = useState<FieldErrors<PageField>>({});
   const [apiErrors, setApiErrors] = useState<string[]>([]);
+  const [problem, setProblem] = useState<SaveProblem>(null);
   const [pending, setPending] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  useUnsavedChangesWarning(dirty);
+  const formRef = useRef<HTMLFormElement>(null);
+  // Versão enviada no PATCH: começa na que a pessoa abriu e só muda se ela escolher salvar por
+  // cima da versão de outra pessoa
+  const versionRef = useRef(page?.version);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -71,6 +82,7 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId }: Page
     };
     setErrors(found);
     setApiErrors([]);
+    setProblem(null);
     const firstInvalid = (['title', 'content'] as const).find((field) => found[field]);
     if (firstInvalid) {
       // flushSync: o textarea precisa estar visível (aba Escrever no mobile) antes do foco
@@ -92,7 +104,7 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId }: Page
             body: {
               title,
               content,
-              version: page.version,
+              version: versionRef.current,
               ...(parentId !== currentParentId && { parentId }),
             },
             token,
@@ -111,21 +123,60 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId }: Page
       // A sidebar vem do layout, que não é refeito na navegação do cliente
       router.refresh();
     } catch (error) {
-      const messages = errorMessages(error);
-      setApiErrors(
-        error instanceof ApiError && error.status === 409
-          ? [...messages, 'O seu texto continua no editor: copie-o antes de recarregar a página.']
-          : messages,
-      );
+      const status = error instanceof ApiError ? error.status : 0;
+      // O texto nunca se perde aqui: os dois casos se resolvem sem sair do editor
+      if (status === 409) {
+        setProblem('conflict');
+        setApiErrors(['Outra pessoa salvou esta página depois que você abriu o editor. O seu texto continua aqui.']);
+      } else if (status === 401) {
+        setProblem('session');
+        setApiErrors([
+          'Sua sessão expirou. Entre de novo em outra aba e depois salve aqui: o seu texto continua no editor.',
+        ]);
+      } else {
+        setApiErrors(errorMessages(error));
+      }
       setPending(false);
+    }
+  };
+
+  // Escolha explícita depois de um 409: grava este texto como a versão seguinte à atual
+  const saveOverCurrentVersion = async () => {
+    if (!page) {
+      return;
+    }
+    try {
+      versionRef.current = (await apiFetch<Page>(`/pages/${page.id}`)).version;
+      formRef.current?.requestSubmit();
+    } catch (error) {
+      setApiErrors(errorMessages(error));
     }
   };
 
   const cancelHref = page ? `/pages/${page.id}` : `/spaces/${spaceId}`;
 
   return (
-    <form noValidate onSubmit={submit} className="space-y-5">
-      <ErrorAlert messages={apiErrors} />
+    <form ref={formRef} noValidate onSubmit={submit} onInput={() => setDirty(true)} className="space-y-5">
+      <ErrorAlert messages={apiErrors}>
+        {/* target=_blank: abre ao lado, sem sair do editor (e sem passar pelo aviso de texto não salvo) */}
+        {problem === 'conflict' && page && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a href={`/pages/${page.id}`} target="_blank" rel="noopener" className={secondaryButton}>
+              Ver a versão atual (nova aba)
+            </a>
+            <button type="button" onClick={saveOverCurrentVersion} className={secondaryButton}>
+              Salvar por cima da versão atual
+            </button>
+          </div>
+        )}
+        {problem === 'session' && (
+          <div className="mt-3">
+            <a href="/login" target="_blank" rel="noopener" className={secondaryButton}>
+              Entrar em nova aba
+            </a>
+          </div>
+        )}
+      </ErrorAlert>
       <Field label="Título" name="title" defaultValue={page?.title} maxLength={MAX_TITLE} error={errors.title} />
 
       <div>

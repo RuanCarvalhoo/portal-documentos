@@ -7,7 +7,9 @@ import { apiFetch, errorMessages } from '@/lib/api';
 import type { Space } from '@/lib/types';
 import type { FieldErrors } from '@/lib/validation';
 import { useAuth } from './auth-provider';
-import { ErrorAlert, Field, secondaryButton, SubmitButton, TextAreaField } from './ui';
+import { ErrorAlert } from './error-alert';
+import { Field, secondaryButton, SubmitButton, TextAreaField } from './ui';
+import { useUnsavedChangesWarning } from './use-unsaved-changes';
 
 type SpaceField = 'name' | 'description';
 
@@ -22,6 +24,8 @@ export function SpaceForm({ space }: { space?: Space }) {
   const [errors, setErrors] = useState<FieldErrors<SpaceField>>({});
   const [apiErrors, setApiErrors] = useState<string[]>([]);
   const [pending, setPending] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  useUnsavedChangesWarning(dirty);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -70,7 +74,7 @@ export function SpaceForm({ space }: { space?: Space }) {
   };
 
   return (
-    <form noValidate onSubmit={submit} className="max-w-xl space-y-5">
+    <form noValidate onSubmit={submit} onInput={() => setDirty(true)} className="max-w-xl space-y-5">
       <ErrorAlert messages={apiErrors} />
       <Field label="Nome" name="name" defaultValue={space?.name} maxLength={MAX_NAME} error={errors.name} />
       <TextAreaField
