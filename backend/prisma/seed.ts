@@ -20,6 +20,8 @@ const FENCE = '```';
 interface PageSeed {
   title: string;
   content: string;
+  /** Texto anterior: a página nasce com ele e é editada para `content`, deixando um histórico */
+  draft?: string;
   children?: PageSeed[];
 }
 
@@ -99,6 +101,9 @@ const SPACES: SpaceSeed[] = [
     pages: [
       {
         title: 'Introdução',
+        draft: `## Visão geral
+
+Rascunho: frontend web, API REST e banco relacional. Falta detalhar a estrutura e os princípios.`,
         content: `## Visão geral
 
 Este documento descreve a arquitetura do sistema: um frontend web que consome uma API REST, que por sua vez persiste os dados em um banco relacional.
@@ -246,7 +251,7 @@ async function createPages(
     const { id } = await tx.page.create({
       data: {
         title: page.title,
-        content: page.content,
+        content: page.draft ?? page.content,
         position,
         spaceId,
         parentId,
@@ -255,6 +260,10 @@ async function createPages(
       },
       select: { id: true },
     });
+    if (page.draft) {
+      // Mesma edição que a API faz: o trigger guarda o rascunho como versão 1 no histórico
+      await tx.page.update({ where: { id }, data: { content: page.content, version: { increment: 1 } } });
+    }
     created += 1 + (await createPages(tx, spaceId, authorId, page.children ?? [], id));
   }
   return created;
