@@ -48,6 +48,19 @@ export interface Page {
   updatedBy: UserSummary;
 }
 
+/** Versão anterior de uma página (o histórico guarda o texto substituído a cada edição) */
+export interface PageVersionSummary {
+  version: number;
+  title: string;
+  editedBy: UserSummary;
+  editedAt: string;
+}
+
+export interface PageVersion extends PageVersionSummary {
+  pageId: string;
+  content: string;
+}
+
 export interface Paginated<T> {
   data: T[];
   meta: { total: number; page: number; limit: number };
