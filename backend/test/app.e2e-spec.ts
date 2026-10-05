@@ -79,6 +79,11 @@ describe('App foundation (e2e)', () => {
     expect(badJson.body.message).toBe('O corpo da requisição não é um JSON válido');
   });
 
+  it('answers 400 for a NUL byte in the search term', async () => {
+    const res = await request(app.getHttpServer()).get('/search?q=abc%00def').expect(400);
+    expect(res.body.message).toBe('O texto contém um caractere inválido (byte nulo)');
+  });
+
   it('sends the API root to the documentation', () => {
     return request(app.getHttpServer()).get('/').expect(302).expect('Location', '/docs');
   });
