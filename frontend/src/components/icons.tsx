@@ -72,3 +72,11 @@ export const LogoIcon = (props: IconProps) => (
     <path d="M14 3v4h4M9 12h6M9 16h4" />
   </Icon>
 );
+
+export const ImageIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <circle cx="9" cy="9" r="2" />
+    <path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21" />
+  </Icon>
+);

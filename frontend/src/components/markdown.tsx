@@ -14,8 +14,8 @@ const components: Components = {
       <a href={href} target="_blank" rel="noopener noreferrer">
         {children}
       </a>
-    ) : href.startsWith('/') ? (
-      // Interno: navegação do cliente, sem recarregar o portal
+    ) : href.startsWith('/') && !href.startsWith('/api/') ? (
+      // Interno: navegação do cliente, sem recarregar o portal (/api/... é arquivo, como uma imagem)
       <Link href={href}>{children}</Link>
     ) : (
       <a href={href}>{children}</a>

@@ -2,17 +2,19 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, memo, useDeferredValue, useRef, useState } from 'react';
+import { type ClipboardEvent, type DragEvent, type FormEvent, memo, useDeferredValue, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { ApiError, apiFetch, errorMessages } from '@/lib/api';
 import type { TreeOption } from '@/lib/tree';
 import { formatDateTime } from '@/lib/format';
-import type { Page, PageVersion } from '@/lib/types';
+import type { Page, PageVersion, UploadedImage } from '@/lib/types';
+import { ACCEPT_IMAGES, imageFileError, imageMarkdown, insertBlock } from '@/lib/uploads';
 import type { FieldErrors } from '@/lib/validation';
 import { useAuth } from './auth-provider';
 import { MarkdownContent } from './markdown';
 import { TagInput } from './tag-input';
 import { ErrorAlert } from './error-alert';
+import { ImageIcon } from './icons';
 import { Field, secondaryButton, SubmitButton } from './ui';
 import { useUnsavedChangesWarning } from './use-unsaved-changes';
 
@@ -75,6 +77,9 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId, restor
   const [dirty, setDirty] = useState(restoring !== undefined);
   useUnsavedChangesWarning(dirty);
   const formRef = useRef<HTMLFormElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
   // Versão enviada no PATCH: começa na que a pessoa abriu e só muda se ela escolher salvar por
   // cima da versão de outra pessoa
   const versionRef = useRef(page?.version);
@@ -159,6 +164,60 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId, restor
     }
   };
 
+  // Envia a imagem e insere o Markdown dela onde está o cursor (ou no lugar da seleção)
+  const uploadImage = async (file: File) => {
+    const invalid = imageFileError(file);
+    if (invalid) {
+      setApiErrors([invalid]);
+      return;
+    }
+    setApiErrors([]);
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.set('file', file);
+      const image = await apiFetch<UploadedImage>('/uploads', { method: 'POST', body: form, token });
+      // O cursor de agora, não o de antes do envio: a pessoa pode ter continuado a escrever
+      const textarea = textareaRef.current;
+      const text = textarea?.value ?? content;
+      const start = textarea?.selectionStart ?? text.length;
+      const end = textarea?.selectionEnd ?? start;
+      const inserted = insertBlock(text, start, end, imageMarkdown(image.fileName, image.path));
+      setContent(inserted.text);
+      // Mudança feita pelo código não dispara o onInput do formulário
+      setDirty(true);
+      requestAnimationFrame(() => {
+        textarea?.focus();
+        textarea?.setSelectionRange(inserted.cursor, inserted.cursor);
+      });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        setProblem('session');
+        setApiErrors(['Sua sessão expirou. Entre de novo em outra aba e envie a imagem outra vez.']);
+      } else {
+        setApiErrors(errorMessages(error));
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const imageFrom = (files: FileList) => Array.from(files).find((file) => file.type.startsWith('image/'));
+  const pasteImage = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const file = imageFrom(event.clipboardData.files);
+    if (file) {
+      event.preventDefault();
+      void uploadImage(file);
+    }
+  };
+  const dropImage = (event: DragEvent<HTMLTextAreaElement>) => {
+    const file = imageFrom(event.dataTransfer.files);
+    if (file) {
+      event.preventDefault();
+      void uploadImage(file);
+    }
+  };
+
   // Escolha explícita depois de um 409: grava este texto como a versão seguinte à atual
   const saveOverCurrentVersion = async () => {
     if (!page) {
@@ -237,9 +296,38 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId, restor
 
       <div>
         <div className="flex items-end justify-between gap-4">
-          <label htmlFor="content" className="block text-sm font-medium">
-            Conteúdo <span className="font-normal text-muted">(Markdown)</span>
-          </label>
+          <div className="flex flex-wrap items-center gap-3">
+            <label htmlFor="content" className="block text-sm font-medium">
+              Conteúdo <span className="font-normal text-muted">(Markdown)</span>
+            </label>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              aria-disabled={uploading}
+              disabled={uploading}
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border px-2 text-xs text-muted transition-colors hover:bg-hover hover:text-foreground disabled:opacity-60"
+            >
+              <ImageIcon width={14} height={14} /> {uploading ? 'Enviando imagem...' : 'Inserir imagem'}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPT_IMAGES}
+              tabIndex={-1}
+              aria-hidden="true"
+              className="sr-only"
+              // Escolher um arquivo não é editar o texto: não marca o formulário como alterado
+              onInput={(event) => event.stopPropagation()}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                // Limpa para que escolher o mesmo arquivo de novo também dispare o envio
+                event.target.value = '';
+                if (file) {
+                  void uploadImage(file);
+                }
+              }}
+            />
+          </div>
           {/* Abas só no mobile; em telas largas editor e preview ficam lado a lado */}
           <div aria-label="Modo do editor" role="group" className="flex gap-1 text-sm lg:hidden">
             {(['write', 'preview'] as const).map((mode) => (
@@ -259,17 +347,21 @@ export function PageForm({ spaceId, parentOptions, page, defaultParentId, restor
         <div className="mt-1.5 grid gap-4 lg:grid-cols-2">
           <div className={tab === 'write' ? '' : 'max-lg:hidden'}>
             <textarea
+              ref={textareaRef}
               id="content"
               name="content"
               value={content}
               onChange={(event) => setContent(event.target.value)}
+              onPaste={pasteImage}
+              onDrop={dropImage}
               aria-invalid={errors.content ? true : undefined}
               aria-describedby="content-mensagem"
               spellCheck
               className="block h-[28rem] w-full resize-y rounded-md border border-border bg-surface px-3 py-2.5 font-mono text-sm leading-relaxed outline-none focus:border-foreground/40 focus:ring-2 focus:ring-accent-fg/25 aria-[invalid=true]:border-danger-fg/60"
             />
             <p id="content-mensagem" className={`mt-1.5 text-sm ${errors.content ? 'text-danger-fg' : 'text-muted'}`}>
-              {errors.content ?? 'Títulos com #, listas, tabelas, links, imagens e blocos de código com ```linguagem.'}
+              {errors.content ??
+                'Títulos com #, listas, tabelas, links e blocos de código com ```linguagem. Cole ou arraste imagens para enviá-las (PNG, JPEG, GIF ou WebP, até 5 MB).'}
             </p>
           </div>
           <section

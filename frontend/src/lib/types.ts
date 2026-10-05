@@ -99,3 +99,12 @@ export interface TaggedPage {
   updatedAt: string;
   tags: string[];
 }
+
+/** Resposta do POST /uploads; no Markdown a imagem fica em `/api` + path */
+export interface UploadedImage {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  path: string;
+}
