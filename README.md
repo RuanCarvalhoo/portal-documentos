@@ -15,7 +15,7 @@ O conteúdo do portal é a **documentação deste projeto**: arquitetura, decis�
 
 ---
 
-## Avaliação rápida (5 minutos)
+## Como testar
 
 1. **Suba o projeto:** `docker compose up --build` e espere os três serviços ficarem *healthy* (`docker compose ps` em outro terminal).
    - Se já rodou uma versão anterior, comece com `docker compose down -v`: o seed só cria o conteúdo num banco sem espaços.
@@ -98,38 +98,6 @@ Todas têm **padrões de desenvolvimento** no `docker-compose.yml`: nada precisa
   - O navegador não chama a porta 3001 diretamente ([ADR 008](docs/adr/008-proxy-da-api-no-frontend.md)), então CORS e o host usado para abrir o portal não interferem.
 - **Conteúdo antigo** (o exemplo fictício de versões anteriores): rode `docker compose down -v` e suba de novo. O seed só importa a documentação num banco vazio.
 - **Porta ocupada:** libere 3000, 3001 e 5433, ou mude o lado do host em `ports` no `docker-compose.yml`.
-
----
-
-## O que foi pedido → onde ver
-
-| Requisito | Onde ver |
-|---|---|
-| Espaços: criar, listar, editar, excluir | Home (**Novo espaço**, lista paginada); página do espaço (**Editar**, **Excluir**) |
-| Páginas com título, conteúdo, espaço e datas | Qualquer página: **Editar**, **Subpágina**, **Excluir**; "Criada por … · Editada por …" |
-| Hierarquia e árvore na navegação | Barra lateral (todas as árvores, recolhíveis); campo **Página pai** no editor; breadcrumb |
-| Markdown com pré-visualização | Editor: texto e preview lado a lado (abas no celular) |
-| Leitura de títulos, listas, tabelas, links, imagens e código | **Guias → Guia de Markdown** |
-| Busca por título e conteúdo | Campo no header → `/search` (paginada, trecho com o termo destacado) |
-| Cadastro, login, escrita só autenticada, autoria | **Entrar / Criar conta**; sem login os botões somem e a API responde 401 |
-| Validações no front e no back, confirmação ao excluir | Formulários (mensagens por campo + erros da API); `confirm` antes de excluir |
-| Um comando, Dockerfiles, migrations e seed automáticos | `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile` |
-| API REST com status corretos e erros centralizados | Swagger; [formato de erro](#api) |
-
-### Diferenciais
-
-| Diferencial | Situação |
-|---|---|
-| Histórico de versões | **Entregue**: histórico por página, visualização e restauração ([ADR 007](docs/adr/007-historico-de-versoes.md)) |
-| Índice automático da página | **Entregue**: "Nesta página", gerado dos títulos |
-| Layout responsivo e modo escuro | **Entregue**: a barra lateral vira gaveta no celular; botão de tema no header |
-| Healthcheck dos serviços | **Entregue**: nos três serviços do compose |
-| Paginação nas listagens | **Entregue**: espaços, busca, histórico, tags e usuários (`{ data, meta }`) |
-| Logs estruturados | **Entregue**: JSON (pino) com `requestId` de ponta a ponta, log de acesso e eventos de negócio ([ADR 009](docs/adr/009-logs-estruturados.md)) |
-| Upload de imagens | **Entregue**: botão, colar ou arrastar no editor; PNG/JPEG/GIF/WebP até 5 MB, com o tipo conferido pelos bytes ([ADR 010](docs/adr/010-armazenamento-de-imagens.md)) |
-| Tags nas páginas | **Entregue**: até 10 por página, normalizadas; chips na página, `/tags` e `/tags/:nome` ([ADR 011](docs/adr/011-tags.md)) |
-| Perfis de acesso | **Entregue**: Admin, Editor e Leitor; conta nova é Leitor; tela **Usuários** para o Admin ([ADR 012](docs/adr/012-perfis-de-acesso.md)) |
-| Testes no front-end ou e2e | **Parcial**: 53 testes do frontend (lógica pura) e 82 e2e da API; sem e2e de navegador |
 
 ---
 
